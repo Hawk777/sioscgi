@@ -1,0 +1,4 @@
+/build/
+/dist/
+/src/sioscgi.egg-info/
+__pycache__/
