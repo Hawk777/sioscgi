@@ -1,0 +1,11 @@
+image: "python:3-alpine"
+
+"Code style":
+  script:
+    - pip install --no-cache-dir pycodestyle
+    - pycodestyle
+
+"Unit tests":
+  script:
+    - pip install .
+    - python -m unittest
