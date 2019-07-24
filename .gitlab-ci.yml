@@ -1,8 +1,13 @@
 image: "python:3-alpine"
 
 "Code style":
+  cache:
+    paths:
+      - .cache/pip
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   script:
-    - pip install --no-cache-dir pycodestyle
+    - pip install pycodestyle
     - pycodestyle
 
 "Unit tests":
