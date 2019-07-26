@@ -8,5 +8,5 @@
 "Unit tests":
   image: "python:3-alpine"
   script:
-    - pip install .
+    - pip install -e .
     - python -m unittest
