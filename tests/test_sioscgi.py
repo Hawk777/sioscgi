@@ -197,7 +197,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_no_SCGI(self):
+    def test_headers_no_scgi(self):
         """
         Test that an exception is raised if the SCGI header is missing.
         """
@@ -240,7 +240,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_wrong_SCGI(self):
+    def test_headers_wrong_scgi(self):
         """
         Test that an exception is raised if the SCGI header has the wrong
         value, implying a different protocol version is in use.
