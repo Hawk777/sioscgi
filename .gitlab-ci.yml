@@ -1,4 +1,4 @@
-"Code style":
+"pycodestyle":
   image:
     name: "cytopia/pycodestyle:latest"
     entrypoint: [""]
