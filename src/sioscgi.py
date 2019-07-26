@@ -193,7 +193,7 @@ class ResponseHeaders(Event):
         # nothing else.
         if self.location is None:
             raise LocalProtocolError("Header Location is mandatory for non-document response")
-        if self.content_type is not None or len(self.other_headers) != 0:
+        if self.content_type is not None or self.other_headers:
             raise LocalProtocolError("Headers other than Location are prohibited for non-document response")
 
 
