@@ -433,18 +433,18 @@ class SCGIConnection:
                         env_dict = {}
                         for i in range(0, len(environment), 2):
                             try:
-                                k = environment[i].decode("ISO-8859-1")
-                                v = environment[i + 1].decode("ISO-8859-1")
+                                key = environment[i].decode("ISO-8859-1")
+                                value = environment[i + 1].decode("ISO-8859-1")
                             except UnicodeError:
                                 self._report_remote_error("Environment variable is not ISO-8859-1")
                                 break
-                            if not k:
+                            if not key:
                                 self._report_remote_error("Environment variable with empty name")
                                 break
-                            if k in env_dict:
-                                self._report_remote_error("Duplicate environment variable {}".format(k))
+                            if key in env_dict:
+                                self._report_remote_error("Duplicate environment variable {}".format(key))
                                 break
-                            env_dict[k] = v
+                            env_dict[key] = value
                         if self._state != State.ERROR:
                             # Check for mandatory environment variables.
                             if env_dict.get("SCGI", None) != "1":

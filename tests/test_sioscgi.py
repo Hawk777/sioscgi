@@ -56,16 +56,16 @@ class TestGood(unittest.TestCase):
                 uut.receive_data(self.RX_DATA)
                 uut.receive_data(B"")
                 self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
-                e = uut.next_event()
-                self.assertIsInstance(e, sioscgi.RequestHeaders)
-                self.assertEqual(e.environment, self.RX_HEADERS)
-                e = uut.next_event()
-                self.assertIsInstance(e, sioscgi.RequestBody)
-                self.assertEqual(e.data, self.RX_BODY)
-                e = uut.next_event()
-                self.assertIsInstance(e, sioscgi.RequestEnd)
-                e = uut.next_event()
-                self.assertIsNone(e)
+                evt = uut.next_event()
+                self.assertIsInstance(evt, sioscgi.RequestHeaders)
+                self.assertEqual(evt.environment, self.RX_HEADERS)
+                evt = uut.next_event()
+                self.assertIsInstance(evt, sioscgi.RequestBody)
+                self.assertEqual(evt.data, self.RX_BODY)
+                evt = uut.next_event()
+                self.assertIsInstance(evt, sioscgi.RequestEnd)
+                evt = uut.next_event()
+                self.assertIsNone(evt)
                 acc = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
                 if response_body is not None:
                     acc += uut.send(sioscgi.ResponseBody(response_body))
@@ -83,25 +83,25 @@ class TestGood(unittest.TestCase):
         for (case_name, response_status, response_headers, response_body, expected_tx) in self.RESPONSES:
             with self.subTest(name=case_name):
                 uut = sioscgi.SCGIConnection()
-                for b in self.RX_DATA:
-                    uut.receive_data(bytes((b, )))
+                for i in self.RX_DATA:
+                    uut.receive_data(bytes((i, )))
                 uut.receive_data(B"")
                 self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
-                e = uut.next_event()
-                self.assertIsInstance(e, sioscgi.RequestHeaders)
-                self.assertEqual(e.environment, self.RX_HEADERS)
-                for b in self.RX_BODY:
-                    e = uut.next_event()
-                    self.assertIsInstance(e, sioscgi.RequestBody)
-                    self.assertEqual(e.data, bytes((b, )))
-                e = uut.next_event()
-                self.assertIsInstance(e, sioscgi.RequestEnd)
-                e = uut.next_event()
-                self.assertIsNone(e)
+                evt = uut.next_event()
+                self.assertIsInstance(evt, sioscgi.RequestHeaders)
+                self.assertEqual(evt.environment, self.RX_HEADERS)
+                for i in self.RX_BODY:
+                    evt = uut.next_event()
+                    self.assertIsInstance(evt, sioscgi.RequestBody)
+                    self.assertEqual(evt.data, bytes((i, )))
+                evt = uut.next_event()
+                self.assertIsInstance(evt, sioscgi.RequestEnd)
+                evt = uut.next_event()
+                self.assertIsNone(evt)
                 acc = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
                 if response_body is not None:
-                    for b in response_body:
-                        acc += uut.send(sioscgi.ResponseBody(bytes((b, ))))
+                    for i in response_body:
+                        acc += uut.send(sioscgi.ResponseBody(bytes((i, ))))
                 self.assertEqual(acc, expected_tx)
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
@@ -285,17 +285,17 @@ class TestBadResponseSequence(unittest.TestCase):
         Test trying to start the response before the request has finished
         arriving.
         """
-        rxData = B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
-        for i in range(1, len(rxData) - 1):
-            rxSubstring = rxData[0:i]
-            with self.subTest(rxSubstring=rxSubstring):
+        rx_data = B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+        for i in range(1, len(rx_data) - 1):
+            rx_substring = rx_data[0:i]
+            with self.subTest(rx_substring=rx_substring):
                 uut = sioscgi.SCGIConnection()
-                uut.receive_data(rxSubstring)
+                uut.receive_data(rx_substring)
                 while uut.next_event() is not None:
                     pass
-                txHeaders = sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/plain; charset=UTF-8")])
+                tx_headers = sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/plain; charset=UTF-8")])
                 with self.assertRaises(sioscgi.LocalProtocolError):
-                    uut.send(txHeaders)
+                    uut.send(tx_headers)
 
     def test_response_body_before_headers(self):
         """
@@ -307,9 +307,9 @@ class TestBadResponseSequence(unittest.TestCase):
         while uut.next_event() is not None:
             pass
         self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
-        txBody = sioscgi.ResponseBody(B"abcd")
+        tx_body = sioscgi.ResponseBody(B"abcd")
         with self.assertRaises(sioscgi.LocalProtocolError):
-            uut.send(txBody)
+            uut.send(tx_body)
 
     def test_response_end_before_headers(self):
         """
