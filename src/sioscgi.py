@@ -32,21 +32,18 @@ class ProtocolError(Exception):
 
     This is the base class of LocalProtocolError and RemoteProtocolError.
     """
-    pass
 
 
 class LocalProtocolError(ProtocolError):
     """
     Raised when the local application violates protocol.
     """
-    pass
 
 
 class RemoteProtocolError(ProtocolError):
     """
     Raised when the remote peer violates protocol.
     """
-    pass
 
 
 class Event(object):
