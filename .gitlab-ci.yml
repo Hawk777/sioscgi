@@ -5,6 +5,14 @@
   script:
     - pycodestyle
 
+"Pylint":
+  image:
+    name: "cytopia/pylint:latest"
+    entrypoint: [""]
+  script:
+    - pip3 install -e .
+    - pylint sioscgi tests
+
 "Unit tests":
   image: "python:3-alpine"
   script:
