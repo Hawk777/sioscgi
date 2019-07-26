@@ -21,20 +21,20 @@ class TestGood(unittest.TestCase):
 
     RESPONSES = [
         ("Standard response with document",
-            "200 OK",
-            [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "2")],
-            B"42",
-            B"Content-Type: text/plain; charset=UTF-8\r\nStatus: 200 OK\r\nContent-Length: 2\r\n\r\n42"),
+         "200 OK",
+         [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "2")],
+         B"42",
+         B"Content-Type: text/plain; charset=UTF-8\r\nStatus: 200 OK\r\nContent-Length: 2\r\n\r\n42"),
         ("Local redirect",
-            None,
-            [("Location", "/foo")],
-            None,
-            B"Location: /foo\r\n\r\n"),
+         None,
+         [("Location", "/foo")],
+         None,
+         B"Location: /foo\r\n\r\n"),
         ("Client redirect with document",
-            "301 Moved Permanently",
-            [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "5"), ("Location", "/foo")],
-            B"moved",
-            B"Location: /foo\r\nStatus: 301 Moved Permanently\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Length: 5\r\n\r\nmoved"),
+         "301 Moved Permanently",
+         [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "5"), ("Location", "/foo")],
+         B"moved",
+         B"Location: /foo\r\nStatus: 301 Moved Permanently\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Length: 5\r\n\r\nmoved"),
     ]
     """
     The responses to generate.
