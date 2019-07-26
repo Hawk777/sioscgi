@@ -57,7 +57,7 @@ class RequestHeaders(Event):
     """
     Reports that a request has started and carries the environment data.
     """
-    __slots__ = ("environment")
+    __slots__ = ("environment",)
 
     def __init__(self, environment):
         self.environment = environment
@@ -77,7 +77,7 @@ class RequestBody(Event):
     No RequestBody event carries an empty chunk; consequently, a request
     without a body never generates RequestBody events.
     """
-    __slots__ = ("data")
+    __slots__ = ("data",)
 
     def __init__(self, data):
         self.data = data
@@ -201,7 +201,7 @@ class ResponseBody(Event):
     """
     Sends a chunk of response body to the SCGI client.
     """
-    __slots__ = ("data")
+    __slots__ = ("data",)
 
     def __init__(self, data):
         """
