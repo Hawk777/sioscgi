@@ -46,7 +46,7 @@ class RemoteProtocolError(ProtocolError):
     """
 
 
-class Event(object):
+class Event:
     """
     The base class of all events returned by an SCGIConnection.
     """
@@ -227,7 +227,7 @@ class ResponseEnd(Event):
         return "ResponseEnd()"
 
 
-class SCGIConnection(object):
+class SCGIConnection:
     """
     An SCGI connection.
 
