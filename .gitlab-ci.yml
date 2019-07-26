@@ -1,16 +1,12 @@
-image: "python:3-alpine"
-
 "Code style":
-  cache:
-    paths:
-      - .cache/pip
-  variables:
-    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  image:
+    name: "cytopia/pycodestyle:latest"
+    entrypoint: [""]
   script:
-    - pip install pycodestyle
     - pycodestyle
 
 "Unit tests":
+  image: "python:3-alpine"
   script:
     - pip install .
     - python -m unittest
