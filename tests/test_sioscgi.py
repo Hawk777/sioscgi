@@ -2,7 +2,6 @@
 Tests the sioscgi module.
 """
 
-import logging
 import unittest
 
 import sioscgi
