@@ -141,15 +141,18 @@ class ResponseHeaders(Event):
         if self.status is None:
             # This is a local redirect or client redirect without document,
             # which should be served as a Location header and nothing else.
+            assert self.location is not None  # Checked in sanity checks if status is None
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\n\r\n"
         elif self.location is not None:
             # This is a client redirect with document, which should be served
             # as Location, then Status, then Content-Type, then everything
             # else.
+            assert self.content_type is not None  # Checked in sanity checks if status is not None
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\nContent-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
         else:
             # This is a document response, which should be served as
             # Content-Type, then Status, then everything else.
+            assert self.content_type is not None  # Checked in sanity checks if status is not None
             return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
 
     @property
@@ -335,6 +338,7 @@ class SCGIConnection:
         exception was previously raised by some other method.
         """
         if self._state is State.ERROR:
+            assert self._error_class is not None  # Implied by State.ERROR
             raise self._error_class(self._error_msg)
         elif self._event_queue:
             return self._event_queue.popleft()
@@ -353,6 +357,7 @@ class SCGIConnection:
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
         if self._state is State.ERROR:
+            assert self._error_class is not None  # Implied by State.ERROR
             raise self._error_class(self._error_msg)
         elif self._state is State.TX_HEADERS and isinstance(event, ResponseHeaders):
             self._state = event.succeeding_state
