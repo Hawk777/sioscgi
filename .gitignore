@@ -2,3 +2,4 @@
 /dist/
 /src/sioscgi.egg-info/
 __pycache__/
+.mypy_cache/

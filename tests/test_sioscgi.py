@@ -43,7 +43,7 @@ class TestGood(unittest.TestCase):
     headers, response body, expected transmitted data).
     """
 
-    def test_big_buffer(self):
+    def test_big_buffer(self) -> None:
         """
         Test the normal cases with a big buffer.
 
@@ -73,7 +73,7 @@ class TestGood(unittest.TestCase):
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
 
-    def test_tiny_buffer(self):
+    def test_tiny_buffer(self) -> None:
         """
         Test the normal cases with a tiny buffer.
 
@@ -113,7 +113,7 @@ class TestBadResponseHeaders(unittest.TestCase):
     caught and rejected.
     """
 
-    def test_non_latin1_content_type(self):
+    def test_non_latin1_content_type(self) -> None:
         """
         Test that a Content-Type header with a non-ISO8859-1-encodable value is
         rejected.
@@ -121,7 +121,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/Ω"), ("Content-Length", "0")])
 
-    def test_non_latin1_location(self):
+    def test_non_latin1_location(self) -> None:
         """
         Test that a Location header with a non-ISO8859-1-encodable value is
         rejected.
@@ -129,7 +129,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders("301 Moved Permanently", [("Location", "/Ω"), ("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "0")])
 
-    def test_non_latin1_other(self):
+    def test_non_latin1_other(self) -> None:
         """
         Test that a header other than Content-Type or Location with a
         non-ISO8859-1-encodable value is rejected.
@@ -137,7 +137,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "0"), ("Other-Thing", "Ω")])
 
-    def test_local_redirect_with_content_type(self):
+    def test_local_redirect_with_content_type(self) -> None:
         """
         Test that a local redirect with a Content-Type header is rejected (a
         local redirect must not have any headers other than Location).
@@ -145,7 +145,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(None, [("Location", "/foo"), ("Content-Type", "text/plain; charset=UTF-8")])
 
-    def test_local_redirect_with_other_header(self):
+    def test_local_redirect_with_other_header(self) -> None:
         """
         Test that a local redirect with an additional header other than
         Content-Type is rejected (a local redirect must not have any headers
@@ -154,7 +154,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(None, [("Location", "/foo"), ("Other-Thing", "bar")])
 
-    def test_client_redirect_without_content_type(self):
+    def test_client_redirect_without_content_type(self) -> None:
         """
         Test that a client redirect without a Content-Type is rejected
         (anything other than a local redirect must have a Content-Type).
@@ -162,7 +162,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders("301 Moved Permanently", [("Location", "/foo"), ("Content-Length", "42")])
 
-    def test_document_without_content_type(self):
+    def test_document_without_content_type(self) -> None:
         """
         Test that a normal document without a Content-Type is rejected
         (anything other than a local redirect must have a Content-Type).
@@ -176,7 +176,7 @@ class TestBadRXData(unittest.TestCase):
     Test various cases of invalid received data.
     """
 
-    def test_premature_eof(self):
+    def test_premature_eof(self) -> None:
         """
         Test that an exception is raised if the received data is truncated.
         """
@@ -186,7 +186,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_no_comma(self):
+    def test_headers_no_comma(self) -> None:
         """
         Test that an exception is raised if the received headers are not
         properly netstring-terminated with a comma.
@@ -197,7 +197,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_no_scgi(self):
+    def test_headers_no_scgi(self) -> None:
         """
         Test that an exception is raised if the SCGI header is missing.
         """
@@ -207,7 +207,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_no_content_length(self):
+    def test_headers_no_content_length(self) -> None:
         """
         Test that an exception is raised if the CONTENT_LENGTH header is missing.
         """
@@ -217,7 +217,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_no_nul(self):
+    def test_headers_no_nul(self) -> None:
         """
         Test that an exception is raised if the header block does not end with
         a NUL.
@@ -228,7 +228,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_odd_number(self):
+    def test_headers_odd_number(self) -> None:
         """
         Test that an exception is raised if the number of NUL-terminated
         strings in the headers block is odd, implying a key without a value or
@@ -240,7 +240,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_wrong_scgi(self):
+    def test_headers_wrong_scgi(self) -> None:
         """
         Test that an exception is raised if the SCGI header has the wrong
         value, implying a different protocol version is in use.
@@ -251,7 +251,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_length_space(self):
+    def test_headers_length_space(self) -> None:
         """
         Test that a space starting the netstring length for the headers block
         is rejected.
@@ -262,7 +262,7 @@ class TestBadRXData(unittest.TestCase):
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
 
-    def test_headers_length_non_integer(self):
+    def test_headers_length_non_integer(self) -> None:
         """
         Test that a non-integer starting the netstring length for the headers
         block is rejected.
@@ -280,7 +280,7 @@ class TestBadResponseSequence(unittest.TestCase):
     in the wrong order.
     """
 
-    def test_response_before_request(self):
+    def test_response_before_request(self) -> None:
         """
         Test trying to start the response before the request has finished
         arriving.
@@ -297,7 +297,7 @@ class TestBadResponseSequence(unittest.TestCase):
                 with self.assertRaises(sioscgi.LocalProtocolError):
                     uut.send(tx_headers)
 
-    def test_response_body_before_headers(self):
+    def test_response_body_before_headers(self) -> None:
         """
         Test trying to send some response body before sending the response
         headers.
@@ -311,7 +311,7 @@ class TestBadResponseSequence(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(tx_body)
 
-    def test_response_end_before_headers(self):
+    def test_response_end_before_headers(self) -> None:
         """
         Test trying to send the response end marker before sending the response
         headers.
@@ -330,7 +330,7 @@ class TestOtherErrors(unittest.TestCase):
     Test other miscellaneous errors.
     """
 
-    def test_rx_after_eof(self):
+    def test_rx_after_eof(self) -> None:
         """
         Test that receiving additional data after EOF raises an exception.
         """

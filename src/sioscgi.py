@@ -5,6 +5,7 @@ Implements the SCGI protocol.
 import collections
 import enum
 import logging
+from typing import Deque, Dict, List, Optional, Tuple, Type
 import wsgiref.headers
 import wsgiref.util
 
@@ -59,11 +60,11 @@ class RequestHeaders(Event):
     """
     __slots__ = ("environment",)
 
-    def __init__(self, environment):
+    def __init__(self, environment: Dict[str, str]):
         self.environment = environment
         """The environment variables, as a dict from name to value"""
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "RequestHeaders({})".format(self.environment)
 
 
@@ -79,11 +80,11 @@ class RequestBody(Event):
     """
     __slots__ = ("data",)
 
-    def __init__(self, data):
+    def __init__(self, data: bytes):
         self.data = data
         """The body data chunk"""
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "RequestBody({})".format(repr(self.data))
 
 
@@ -97,7 +98,7 @@ class RequestEnd(Event):
     """
     __slots__ = ()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "RequestEnd()"
 
 
@@ -111,7 +112,12 @@ class ResponseHeaders(Event):
     """
     __slots__ = ("status", "content_type", "location", "other_headers")
 
-    def __init__(self, status, headers):
+    status: Optional[str]
+    content_type: Optional[str]
+    location: Optional[str]
+    other_headers: wsgiref.headers.Headers
+
+    def __init__(self, status: Optional[str], headers: List[Tuple[str, str]]):
         """
         Construct a ResponseHeaders.
 
@@ -128,26 +134,29 @@ class ResponseHeaders(Event):
         del self.other_headers["Location"]
         self._sanity_check()
 
-    def encode(self):
+    def encode(self) -> bytes:
         """
         Convert this event into its encoding as raw bytes.
         """
         if self.status is None:
             # This is a local redirect or client redirect without document,
             # which should be served as a Location header and nothing else.
+            assert self.location is not None  # Checked in sanity checks if status is None
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\n\r\n"
         elif self.location is not None:
             # This is a client redirect with document, which should be served
             # as Location, then Status, then Content-Type, then everything
             # else.
+            assert self.content_type is not None  # Checked in sanity checks if status is not None
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\nContent-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
         else:
             # This is a document response, which should be served as
             # Content-Type, then Status, then everything else.
+            assert self.content_type is not None  # Checked in sanity checks if status is not None
             return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
 
     @property
-    def succeeding_state(self):
+    def succeeding_state(self) -> State:
         """
         Return the state the state machine should be in after sending these
         headers.
@@ -157,10 +166,10 @@ class ResponseHeaders(Event):
         else:
             return State.TX_NO_BODY
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "ResponseHeaders(status={}, content_type={}, location={}, other_headers={})".format(self.status, self.content_type, self.location, repr(self.other_headers))
 
-    def _sanity_check(self):
+    def _sanity_check(self) -> None:
         # The application must not specify any hop-by-hop headers.
         for name in self.other_headers.keys():
             if wsgiref.util.is_hop_by_hop(name):
@@ -183,12 +192,12 @@ class ResponseHeaders(Event):
         else:
             self._sanity_check_without_document()
 
-    def _sanity_check_with_document(self):
+    def _sanity_check_with_document(self) -> None:
         # A response with a document must contain a Content-Type header.
         if self.content_type is None:
             raise LocalProtocolError("Header Content-Type is mandatory for document response")
 
-    def _sanity_check_without_document(self):
+    def _sanity_check_without_document(self) -> None:
         # A response without a document must contain a Location header and
         # nothing else.
         if self.location is None:
@@ -203,7 +212,7 @@ class ResponseBody(Event):
     """
     __slots__ = ("data",)
 
-    def __init__(self, data):
+    def __init__(self, data: bytes):
         """
         Construct a ResponseBody.
 
@@ -211,7 +220,7 @@ class ResponseBody(Event):
         """
         self.data = data
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "ResponseBody({})".format(repr(self.data))
 
 
@@ -223,7 +232,7 @@ class ResponseEnd(Event):
     """
     __slots__ = ()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "ResponseEnd()"
 
 
@@ -248,7 +257,18 @@ class SCGIConnection:
         "_rx_body_remaining",
     )
 
-    def __init__(self, rx_buffer_limit=65536):
+    _state: State
+    _error_class: Optional[Type[ProtocolError]]
+    _error_msg: Optional[str]
+    _event_queue: Deque[Event]
+    _rx_buffer: Deque[bytes]
+    _rx_buffer_length: int
+    _rx_buffer_limit: int
+    _rx_eof: bool
+    _rx_env_length: int
+    _rx_body_remaining: int
+
+    def __init__(self, rx_buffer_limit: int = 65536):
         """
         Construct a new SCGIConnection.
 
@@ -265,11 +285,11 @@ class SCGIConnection:
         self._rx_buffer_length = 0
         self._rx_buffer_limit = rx_buffer_limit
         self._rx_eof = False
-        self._rx_env_length = None
-        self._rx_body_remaining = None
+        self._rx_env_length = 0
+        self._rx_body_remaining = 0
 
     @property
-    def state(self):
+    def state(self) -> State:
         """
         The state the connection is currently in.
 
@@ -279,7 +299,7 @@ class SCGIConnection:
         """
         return self._state
 
-    def receive_data(self, data):
+    def receive_data(self, data: bytes) -> None:
         """
         Provide data received over the network to the SCGI connection.
 
@@ -293,8 +313,7 @@ class SCGIConnection:
         if data:
             if self._rx_eof:
                 logging.getLogger(__name__).debug("Received %d bytes after EOF", len(data))
-                self._report_local_error("Data received after EOF")
-                raise self._error_class(self._error_msg)
+                raise self._report_local_error("Data received after EOF")
             if self._state != State.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
                 self._rx_buffer.append(data)
@@ -304,7 +323,7 @@ class SCGIConnection:
             self._rx_eof = True
         self._parse_events()
 
-    def next_event(self):
+    def next_event(self) -> Optional[Event]:
         """
         Return the next event in the event queue.
 
@@ -318,13 +337,14 @@ class SCGIConnection:
         exception was previously raised by some other method.
         """
         if self._state is State.ERROR:
+            assert self._error_class is not None  # Implied by State.ERROR
             raise self._error_class(self._error_msg)
         elif self._event_queue:
             return self._event_queue.popleft()
         else:
             return None
 
-    def send(self, event):
+    def send(self, event: Event) -> Optional[bytes]:
         """
         Send an event to the peer and return the bytes to send, or None if the
         connection should now be closed.
@@ -336,6 +356,7 @@ class SCGIConnection:
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
         if self._state is State.ERROR:
+            assert self._error_class is not None  # Implied by State.ERROR
             raise self._error_class(self._error_msg)
         elif self._state is State.TX_HEADERS and isinstance(event, ResponseHeaders):
             self._state = event.succeeding_state
@@ -350,10 +371,9 @@ class SCGIConnection:
             self._state = State.DONE
             return None
         else:
-            self._report_local_error("Event {} prohibited in state {}".format(type(event), self._state))
-            raise self._error_class(self._error_msg)
+            raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._state))
 
-    def _parse_events(self):
+    def _parse_events(self) -> None:
         # Throughout this method, we assume that at most one element has been
         # added to the receive buffer; this is safe because this method is
         # called from receive_data, so we eagerly parse as much as we can on
@@ -424,17 +444,17 @@ class SCGIConnection:
                     self._report_remote_error("Environment block not NUL-terminated")
                 else:
                     # Split the environment block into NUL-terminated chunks.
-                    environment = environment[:-1].split(B"\x00")
+                    split_environment = environment[:-1].split(B"\x00")
                     # Check that there are an even number of parts.
-                    if len(environment) % 2 == 1:
+                    if len(split_environment) % 2 == 1:
                         self._report_remote_error("Environment block missing final value")
                     else:
                         # Build the dictionary.
-                        env_dict = {}
-                        for i in range(0, len(environment), 2):
+                        env_dict: Dict[str, str] = {}
+                        for i in range(0, len(split_environment), 2):
                             try:
-                                key = environment[i].decode("ISO-8859-1")
-                                value = environment[i + 1].decode("ISO-8859-1")
+                                key = split_environment[i].decode("ISO-8859-1")
+                                value = split_environment[i + 1].decode("ISO-8859-1")
                             except UnicodeError:
                                 self._report_remote_error("Environment variable is not ISO-8859-1")
                                 break
@@ -486,13 +506,14 @@ class SCGIConnection:
         elif self._rx_eof and self._state in {State.RX_HEADER_LENGTH, State.RX_HEADERS, State.RX_BODY}:
             self._report_remote_error("Premature EOF")
 
-    def _report_local_error(self, msg):
+    def _report_local_error(self, msg: str) -> LocalProtocolError:
         self._report_error(LocalProtocolError, msg)
+        return LocalProtocolError(msg)
 
-    def _report_remote_error(self, msg):
+    def _report_remote_error(self, msg: str) -> None:
         self._report_error(RemoteProtocolError, msg)
 
-    def _report_error(self, error_class, msg):
+    def _report_error(self, error_class: Type[ProtocolError], msg: str) -> None:
         self._state = State.ERROR
         self._error_class = error_class
         self._error_msg = msg
