@@ -313,8 +313,7 @@ class SCGIConnection:
         if data:
             if self._rx_eof:
                 logging.getLogger(__name__).debug("Received %d bytes after EOF", len(data))
-                self._report_local_error("Data received after EOF")
-                raise self._error_class(self._error_msg)
+                raise self._report_local_error("Data received after EOF")
             if self._state != State.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
                 self._rx_buffer.append(data)
@@ -372,8 +371,7 @@ class SCGIConnection:
             self._state = State.DONE
             return None
         else:
-            self._report_local_error("Event {} prohibited in state {}".format(type(event), self._state))
-            raise self._error_class(self._error_msg)
+            raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._state))
 
     def _parse_events(self) -> None:
         # Throughout this method, we assume that at most one element has been
@@ -508,8 +506,9 @@ class SCGIConnection:
         elif self._rx_eof and self._state in {State.RX_HEADER_LENGTH, State.RX_HEADERS, State.RX_BODY}:
             self._report_remote_error("Premature EOF")
 
-    def _report_local_error(self, msg: str) -> None:
+    def _report_local_error(self, msg: str) -> LocalProtocolError:
         self._report_error(LocalProtocolError, msg)
+        return LocalProtocolError(msg)
 
     def _report_remote_error(self, msg: str) -> None:
         self._report_error(RemoteProtocolError, msg)
