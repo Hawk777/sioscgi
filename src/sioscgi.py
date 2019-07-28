@@ -446,17 +446,17 @@ class SCGIConnection:
                     self._report_remote_error("Environment block not NUL-terminated")
                 else:
                     # Split the environment block into NUL-terminated chunks.
-                    environment = environment[:-1].split(B"\x00")
+                    split_environment = environment[:-1].split(B"\x00")
                     # Check that there are an even number of parts.
-                    if len(environment) % 2 == 1:
+                    if len(split_environment) % 2 == 1:
                         self._report_remote_error("Environment block missing final value")
                     else:
                         # Build the dictionary.
                         env_dict: Dict[str, str] = {}
-                        for i in range(0, len(environment), 2):
+                        for i in range(0, len(split_environment), 2):
                             try:
-                                key = environment[i].decode("ISO-8859-1")
-                                value = environment[i + 1].decode("ISO-8859-1")
+                                key = split_environment[i].decode("ISO-8859-1")
+                                value = split_environment[i + 1].decode("ISO-8859-1")
                             except UnicodeError:
                                 self._report_remote_error("Environment variable is not ISO-8859-1")
                                 break
