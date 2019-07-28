@@ -266,7 +266,7 @@ class SCGIConnection:
     _rx_buffer_limit: int
     _rx_eof: bool
     _rx_env_length: int
-    _rx_body_remaining: Optional[int]
+    _rx_body_remaining: int
 
     def __init__(self, rx_buffer_limit: int = 65536):
         """
@@ -286,7 +286,7 @@ class SCGIConnection:
         self._rx_buffer_limit = rx_buffer_limit
         self._rx_eof = False
         self._rx_env_length = 0
-        self._rx_body_remaining = None
+        self._rx_body_remaining = 0
 
     @property
     def state(self) -> State:
