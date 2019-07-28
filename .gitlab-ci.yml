@@ -1,3 +1,14 @@
+"mypy":
+  image:
+    name: "grktsh/mypy:latest"
+    entrypoint: [""]
+  cache:
+    paths:
+      - .mypy_cache/
+    key: "mypy"
+  script:
+    - mypy --strict src
+
 "pycodestyle":
   image:
     name: "cytopia/pycodestyle:latest"
