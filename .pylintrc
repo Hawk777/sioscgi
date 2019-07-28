@@ -76,5 +76,6 @@ disable=
 	too-few-public-methods,
 	too-many-branches,
 	too-many-instance-attributes,
+	too-many-locals,
 	too-many-nested-blocks,
 	too-many-statements,
