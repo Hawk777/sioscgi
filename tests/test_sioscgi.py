@@ -55,7 +55,8 @@ class TestGood(unittest.TestCase):
                 uut = sioscgi.SCGIConnection()
                 uut.receive_data(self.RX_DATA)
                 uut.receive_data(B"")
-                self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+                self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
+                self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
@@ -86,7 +87,8 @@ class TestGood(unittest.TestCase):
                 for i in self.RX_DATA:
                     uut.receive_data(bytes((i, )))
                 uut.receive_data(B"")
-                self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+                self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
+                self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
@@ -289,7 +291,7 @@ class TestBadResponseSequence(unittest.TestCase):
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
         while uut.next_event() is not None:
             pass
-        self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         tx_body = sioscgi.ResponseBody(B"abcd")
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(tx_body)
@@ -303,7 +305,7 @@ class TestBadResponseSequence(unittest.TestCase):
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
         while uut.next_event() is not None:
             pass
-        self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(sioscgi.ResponseEnd())
 
