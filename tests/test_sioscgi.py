@@ -108,6 +108,48 @@ class TestGood(unittest.TestCase):
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
 
+    def test_request_response_interleaving(self):
+        """
+        Test that response data can be shipped out before the request body is
+        finished.
+
+        This is not strictly permitted by the SCGI specification (“When the
+        SCGI server sees the end of the request it sends back a response and
+        closes the connection.”) but it is permitted by the CGI specification
+        (“However, it is not obliged to read any of the data.”), works fine
+        with a number of SCGI clients, and is useful to be able to do if
+        supported by the environment.
+        """
+        _, response_status, response_headers, response_body, response_expected = self.RESPONSES[0]
+
+        uut = sioscgi.SCGIConnection()
+        uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestHeaders)
+        self.assertIsNone(uut.next_event())
+
+        out_data = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
+
+        uut.receive_data(B"What is")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestBody)
+        self.assertEqual(evt.data, B"What is")
+        self.assertIsNone(uut.next_event())
+
+        out_data += uut.send(sioscgi.ResponseBody(response_body[:len(response_body) // 2]))
+
+        uut.receive_data(B" the answer to life?")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestBody)
+        self.assertEqual(evt.data, B" the answer to life?")
+        self.assertIsInstance(uut.next_event(), sioscgi.RequestEnd)
+        self.assertIsNone(uut.next_event())
+
+        out_data += uut.send(sioscgi.ResponseBody(response_body[len(response_body) // 2:]))
+        self.assertIsNone(uut.send(sioscgi.ResponseEnd()))
+
+        self.assertEqual(out_data, response_expected)
+
 
 class TestBadResponseHeaders(unittest.TestCase):
     """
