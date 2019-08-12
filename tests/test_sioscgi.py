@@ -280,23 +280,6 @@ class TestBadResponseSequence(unittest.TestCase):
     in the wrong order.
     """
 
-    def test_response_before_request(self) -> None:
-        """
-        Test trying to start the response before the request has finished
-        arriving.
-        """
-        rx_data = B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
-        for i in range(1, len(rx_data) - 1):
-            rx_substring = rx_data[0:i]
-            with self.subTest(rx_substring=rx_substring):
-                uut = sioscgi.SCGIConnection()
-                uut.receive_data(rx_substring)
-                while uut.next_event() is not None:
-                    pass
-                tx_headers = sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/plain; charset=UTF-8")])
-                with self.assertRaises(sioscgi.LocalProtocolError):
-                    uut.send(tx_headers)
-
     def test_response_body_before_headers(self) -> None:
         """
         Test trying to send some response body before sending the response
