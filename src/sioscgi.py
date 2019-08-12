@@ -11,17 +11,26 @@ import wsgiref.util
 
 
 @enum.unique
-class State(enum.Enum):
+class RXState(enum.Enum):
     """
-    The possible states the connection can be in.
+    The possible states the receive half of the connection can be in.
     """
 
-    RX_HEADER_LENGTH = enum.auto()
-    RX_HEADERS = enum.auto()
-    RX_BODY = enum.auto()
-    TX_HEADERS = enum.auto()
-    TX_BODY = enum.auto()
-    TX_NO_BODY = enum.auto()
+    HEADER_LENGTH = enum.auto()
+    HEADERS = enum.auto()
+    BODY = enum.auto()
+    DONE = enum.auto()
+    ERROR = enum.auto()
+
+
+@enum.unique
+class TXState(enum.Enum):
+    """
+    The possible states the transmit half of the connection can be in.
+    """
+    HEADERS = enum.auto()
+    BODY = enum.auto()
+    NO_BODY = enum.auto()
     DONE = enum.auto()
     ERROR = enum.auto()
 
@@ -156,15 +165,15 @@ class ResponseHeaders(Event):
             return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
 
     @property
-    def succeeding_state(self) -> State:
+    def succeeding_state(self) -> TXState:
         """
         Return the state the state machine should be in after sending these
         headers.
         """
         if self.status is not None:
-            return State.TX_BODY
+            return TXState.BODY
         else:
-            return State.TX_NO_BODY
+            return TXState.NO_BODY
 
     def __repr__(self) -> str:
         return "ResponseHeaders(status={}, content_type={}, location={}, other_headers={})".format(self.status, self.content_type, self.location, repr(self.other_headers))
@@ -245,7 +254,8 @@ class SCGIConnection:
     """
 
     __slots__ = (
-        "_state",
+        "_rx_state",
+        "_tx_state",
         "_error_class",
         "_error_msg",
         "_event_queue",
@@ -257,7 +267,8 @@ class SCGIConnection:
         "_rx_body_remaining",
     )
 
-    _state: State
+    _rx_state: RXState
+    _tx_state: TXState
     _error_class: Optional[Type[ProtocolError]]
     _error_msg: Optional[str]
     _event_queue: Deque[Event]
@@ -277,7 +288,8 @@ class SCGIConnection:
             bounds the size of request environment
         """
         super().__init__()
-        self._state = State.RX_HEADER_LENGTH
+        self._rx_state = RXState.HEADER_LENGTH
+        self._tx_state = TXState.HEADERS
         self._error_class = None
         self._error_msg = None
         self._event_queue = collections.deque()
@@ -289,15 +301,22 @@ class SCGIConnection:
         self._rx_body_remaining = 0
 
     @property
-    def state(self) -> State:
+    def rx_state(self) -> RXState:
         """
-        The state the connection is currently in.
+        The state the receive half of the connection is currently in.
 
         Events and state transitions are generated on receipt of data, not on
         call to next_event, so this value reflects the state of the connection
         as it will be after all events have been consumed.
         """
-        return self._state
+        return self._rx_state
+
+    @property
+    def tx_state(self) -> TXState:
+        """
+        The state the transmit half of the connection is currently in.
+        """
+        return self._tx_state
 
     def receive_data(self, data: bytes) -> None:
         """
@@ -314,7 +333,7 @@ class SCGIConnection:
             if self._rx_eof:
                 logging.getLogger(__name__).debug("Received %d bytes after EOF", len(data))
                 raise self._report_local_error("Data received after EOF")
-            if self._state != State.ERROR:
+            if self._rx_state != RXState.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
                 self._rx_buffer.append(data)
                 self._rx_buffer_length += len(data)
@@ -336,8 +355,8 @@ class SCGIConnection:
         protocol error, or LocalProtocolError in the event that the same
         exception was previously raised by some other method.
         """
-        if self._state is State.ERROR:
-            assert self._error_class is not None  # Implied by State.ERROR
+        if self._rx_state is RXState.ERROR:
+            assert self._error_class is not None  # Implied by RXState.ERROR
             raise self._error_class(self._error_msg)
         elif self._event_queue:
             return self._event_queue.popleft()
@@ -355,23 +374,23 @@ class SCGIConnection:
         now.
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
-        if self._state is State.ERROR:
-            assert self._error_class is not None  # Implied by State.ERROR
+        if self._tx_state is TXState.ERROR:
+            assert self._error_class is not None  # Implied by TXState.ERROR
             raise self._error_class(self._error_msg)
-        elif self._state is State.TX_HEADERS and isinstance(event, ResponseHeaders):
-            self._state = event.succeeding_state
+        elif self._tx_state is TXState.HEADERS and isinstance(event, ResponseHeaders):
+            self._tx_state = event.succeeding_state
             return event.encode()
-        elif self._state is State.TX_BODY and isinstance(event, (ResponseBody, ResponseEnd)):
+        elif self._tx_state is TXState.BODY and isinstance(event, (ResponseBody, ResponseEnd)):
             if isinstance(event, ResponseBody):
                 return event.data
             else:
-                self._state = State.DONE
+                self._tx_state = TXState.DONE
                 return None
-        elif self._state is State.TX_NO_BODY and isinstance(event, ResponseEnd):
-            self._state = State.DONE
+        elif self._tx_state is TXState.NO_BODY and isinstance(event, ResponseEnd):
+            self._tx_state = TXState.DONE
             return None
         else:
-            raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._state))
+            raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._tx_state))
 
     def _parse_events(self) -> None:
         # Throughout this method, we assume that at most one element has been
@@ -379,7 +398,7 @@ class SCGIConnection:
         # called from receive_data, so we eagerly parse as much as we can on
         # every received chunk.
         logger = logging.getLogger(__name__)
-        if self._state is State.RX_HEADER_LENGTH:
+        if self._rx_state is RXState.HEADER_LENGTH:
             logger.debug("In RX_HEADER_LENGTH")
             if self._rx_buffer:
                 # The length-of-environment integer ends with a colon.
@@ -412,12 +431,12 @@ class SCGIConnection:
                         else:
                             # Advance the state machine, keeping any residual
                             # bytes.
-                            self._state = State.RX_HEADERS
+                            self._rx_state = RXState.HEADERS
                             if residue:
                                 self._rx_buffer.append(residue)
                                 self._rx_buffer_length += len(residue)
                             logger.debug("Length of headers is %d, residue is %d bytes", self._rx_env_length, len(residue))
-        if self._state is State.RX_HEADERS:
+        if self._rx_state is RXState.HEADERS:
             logger.debug("In RX_HEADERS")
             if self._rx_buffer_length > self._rx_env_length:
                 # Split the receive buffer into the environment of the
@@ -465,14 +484,14 @@ class SCGIConnection:
                                 self._report_remote_error("Duplicate environment variable {}".format(key))
                                 break
                             env_dict[key] = value
-                        if self._state != State.ERROR:
+                        if self._rx_state != RXState.ERROR:
                             # Check for mandatory environment variables.
                             if env_dict.get("SCGI", None) != "1":
                                 self._report_remote_error("Mandatory variable SCGI not set to 1")
                             else:
                                 # Advance the state machine, keeping any residual
                                 # bytes.
-                                self._state = State.RX_BODY
+                                self._rx_state = RXState.BODY
                                 if residue:
                                     self._rx_buffer.append(residue)
                                     self._rx_buffer_length += len(residue)
@@ -484,7 +503,7 @@ class SCGIConnection:
                                     logger.debug("Retrieved %d headers, residue is %d bytes", len(env_dict), len(residue))
                                 except ValueError:
                                     self._report_remote_error("CONTENT_LENGTH missing or not a whole number")
-        if self._state is State.RX_BODY:
+        if self._rx_state is RXState.BODY:
             logger.debug("In RX_BODY, buffer length = %d, body remaining = %d", self._rx_buffer_length, self._rx_body_remaining)
             if self._rx_buffer_length <= self._rx_body_remaining:
                 for chunk in self._rx_buffer:
@@ -494,16 +513,16 @@ class SCGIConnection:
                 self._rx_buffer_length = 0
                 if self._rx_body_remaining == 0:
                     self._event_queue.append(RequestEnd())
-                    self._state = State.TX_HEADERS
+                    self._rx_state = RXState.DONE
             else:
                 self._report_remote_error("Request body longer than CONTENT_LENGTH")
-        if self._state in {State.TX_HEADERS, State.TX_BODY, State.DONE}:
-            logger.debug("In %s", self._state)
+        if self._rx_state is RXState.DONE:
+            logger.debug("In %s", self._rx_state)
             if self._rx_buffer_length:
                 self._report_remote_error("Request body longer than CONTENT_LENGTH")
         if self._rx_buffer_length > self._rx_buffer_limit:
             self._report_remote_error("Too many bytes buffered")
-        elif self._rx_eof and self._state in {State.RX_HEADER_LENGTH, State.RX_HEADERS, State.RX_BODY}:
+        elif self._rx_eof and self._rx_state in {RXState.HEADER_LENGTH, RXState.HEADERS, RXState.BODY}:
             self._report_remote_error("Premature EOF")
 
     def _report_local_error(self, msg: str) -> LocalProtocolError:
@@ -514,6 +533,7 @@ class SCGIConnection:
         self._report_error(RemoteProtocolError, msg)
 
     def _report_error(self, error_class: Type[ProtocolError], msg: str) -> None:
-        self._state = State.ERROR
+        self._rx_state = RXState.ERROR
+        self._tx_state = TXState.ERROR
         self._error_class = error_class
         self._error_msg = msg

@@ -55,7 +55,8 @@ class TestGood(unittest.TestCase):
                 uut = sioscgi.SCGIConnection()
                 uut.receive_data(self.RX_DATA)
                 uut.receive_data(B"")
-                self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+                self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
+                self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
@@ -86,7 +87,8 @@ class TestGood(unittest.TestCase):
                 for i in self.RX_DATA:
                     uut.receive_data(bytes((i, )))
                 uut.receive_data(B"")
-                self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+                self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
+                self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
@@ -105,6 +107,48 @@ class TestGood(unittest.TestCase):
                 self.assertEqual(acc, expected_tx)
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
+
+    def test_request_response_interleaving(self):
+        """
+        Test that response data can be shipped out before the request body is
+        finished.
+
+        This is not strictly permitted by the SCGI specification (“When the
+        SCGI server sees the end of the request it sends back a response and
+        closes the connection.”) but it is permitted by the CGI specification
+        (“However, it is not obliged to read any of the data.”), works fine
+        with a number of SCGI clients, and is useful to be able to do if
+        supported by the environment.
+        """
+        _, response_status, response_headers, response_body, response_expected = self.RESPONSES[0]
+
+        uut = sioscgi.SCGIConnection()
+        uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestHeaders)
+        self.assertIsNone(uut.next_event())
+
+        out_data = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
+
+        uut.receive_data(B"What is")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestBody)
+        self.assertEqual(evt.data, B"What is")
+        self.assertIsNone(uut.next_event())
+
+        out_data += uut.send(sioscgi.ResponseBody(response_body[:len(response_body) // 2]))
+
+        uut.receive_data(B" the answer to life?")
+        evt = uut.next_event()
+        self.assertIsInstance(evt, sioscgi.RequestBody)
+        self.assertEqual(evt.data, B" the answer to life?")
+        self.assertIsInstance(uut.next_event(), sioscgi.RequestEnd)
+        self.assertIsNone(uut.next_event())
+
+        out_data += uut.send(sioscgi.ResponseBody(response_body[len(response_body) // 2:]))
+        self.assertIsNone(uut.send(sioscgi.ResponseEnd()))
+
+        self.assertEqual(out_data, response_expected)
 
 
 class TestBadResponseHeaders(unittest.TestCase):
@@ -280,23 +324,6 @@ class TestBadResponseSequence(unittest.TestCase):
     in the wrong order.
     """
 
-    def test_response_before_request(self) -> None:
-        """
-        Test trying to start the response before the request has finished
-        arriving.
-        """
-        rx_data = B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
-        for i in range(1, len(rx_data) - 1):
-            rx_substring = rx_data[0:i]
-            with self.subTest(rx_substring=rx_substring):
-                uut = sioscgi.SCGIConnection()
-                uut.receive_data(rx_substring)
-                while uut.next_event() is not None:
-                    pass
-                tx_headers = sioscgi.ResponseHeaders("200 OK", [("Content-Type", "text/plain; charset=UTF-8")])
-                with self.assertRaises(sioscgi.LocalProtocolError):
-                    uut.send(tx_headers)
-
     def test_response_body_before_headers(self) -> None:
         """
         Test trying to send some response body before sending the response
@@ -306,7 +333,7 @@ class TestBadResponseSequence(unittest.TestCase):
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
         while uut.next_event() is not None:
             pass
-        self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         tx_body = sioscgi.ResponseBody(B"abcd")
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(tx_body)
@@ -320,7 +347,7 @@ class TestBadResponseSequence(unittest.TestCase):
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
         while uut.next_event() is not None:
             pass
-        self.assertIs(uut.state, sioscgi.State.TX_HEADERS)
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(sioscgi.ResponseEnd())
 
