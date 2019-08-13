@@ -1,3 +1,9 @@
+Changes in 2.1.0
+================
+
+A ``py.typed`` file is now installed, allowing Mypy to type check consumers of
+sioscgi.
+
 Changes in 2.0.0
 ================
 
