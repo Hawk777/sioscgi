@@ -69,6 +69,8 @@ class RequestHeaders(Event):
     """
     __slots__ = ("environment",)
 
+    environment: Dict[str, str]
+
     def __init__(self, environment: Dict[str, str]):
         self.environment = environment
         """The environment variables, as a dict from name to value"""
@@ -88,6 +90,8 @@ class RequestBody(Event):
     without a body never generates RequestBody events.
     """
     __slots__ = ("data",)
+
+    data: bytes
 
     def __init__(self, data: bytes):
         self.data = data
@@ -220,6 +224,8 @@ class ResponseBody(Event):
     Sends a chunk of response body to the SCGI client.
     """
     __slots__ = ("data",)
+
+    data: bytes
 
     def __init__(self, data: bytes):
         """
