@@ -72,6 +72,12 @@ class RequestHeaders(Event):
     environment: Dict[str, str]
 
     def __init__(self, environment: Dict[str, str]):
+        """
+        Construct a new RequestHeaders.
+
+        :param environment: The environment variables, as a dict from name to
+            value.
+        """
         self.environment = environment
         """The environment variables, as a dict from name to value"""
 
@@ -94,6 +100,11 @@ class RequestBody(Event):
     data: bytes
 
     def __init__(self, data: bytes):
+        """
+        Construct a new RequestBody.
+
+        :param data: The body data chunk.
+        """
         self.data = data
         """The body data chunk"""
 
@@ -183,6 +194,7 @@ class ResponseHeaders(Event):
         return "ResponseHeaders(status={}, content_type={}, location={}, other_headers={})".format(self.status, self.content_type, self.location, repr(self.other_headers))
 
     def _sanity_check(self) -> None:
+        """Perform sanity checks to verify that the headers are consistent."""
         # The application must not specify any hop-by-hop headers.
         for name in self.other_headers.keys():
             if wsgiref.util.is_hop_by_hop(name):
@@ -206,11 +218,13 @@ class ResponseHeaders(Event):
             self._sanity_check_without_document()
 
     def _sanity_check_with_document(self) -> None:
+        """Perform sanity checks specific to responses with bodies."""
         # A response with a document must contain a Content-Type header.
         if self.content_type is None:
             raise LocalProtocolError("Header Content-Type is mandatory for document response")
 
     def _sanity_check_without_document(self) -> None:
+        """Perform sanity checks specific to responses without bodies."""
         # A response without a document must contain a Location header and
         # nothing else.
         if self.location is None:
@@ -399,6 +413,10 @@ class SCGIConnection:
             raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._tx_state))
 
     def _parse_events(self) -> None:
+        """
+        Remove bytes from the receive buffer and turn them into events in the
+        event queue.
+        """
         # Throughout this method, we assume that at most one element has been
         # added to the receive buffer; this is safe because this method is
         # called from receive_data, so we eagerly parse as much as we can on
@@ -532,13 +550,34 @@ class SCGIConnection:
             self._report_remote_error("Premature EOF")
 
     def _report_local_error(self, msg: str) -> LocalProtocolError:
+        """
+        Record and raise a local protocol error.
+
+        :param msg: The error message.
+        """
         self._report_error(LocalProtocolError, msg)
         return LocalProtocolError(msg)
 
     def _report_remote_error(self, msg: str) -> None:
+        """
+        Record a remote protocol error.
+
+        The error is not raised because remote protocol errors are detected
+        during calls to receive_data but should be reported during calls to
+        next_event.
+
+        :param msg: The error message.
+        """
         self._report_error(RemoteProtocolError, msg)
 
     def _report_error(self, error_class: Type[ProtocolError], msg: str) -> None:
+        """
+        Record an error for later reporting.
+
+        :param error_class: The class of protocol error, either
+            LocalProtocolError or RemoteProtocolError.
+        :param msg: The error message.
+        """
         self._rx_state = RXState.ERROR
         self._tx_state = TXState.ERROR
         self._error_class = error_class
