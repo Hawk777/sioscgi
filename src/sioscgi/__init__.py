@@ -134,10 +134,10 @@ class ResponseHeaders(Event):
         """
         Construct a ResponseHeaders.
 
-        status -- the HTTP status code and string (e.g. “200 OK”), or None if a
-            local redirect or client redirect without document is being
-            generated
-        headers -- a list of (name, value) tuples of HTTP headers
+        :param status: The HTTP status code and string (e.g. “200 OK”), or None
+            if a local redirect or client redirect without document is being
+            generated.
+        :param headers: A list of (name, value) tuples of HTTP headers.
         """
         self.status = status
         self.other_headers = wsgiref.headers.Headers(list(headers))
@@ -231,7 +231,7 @@ class ResponseBody(Event):
         """
         Construct a ResponseBody.
 
-        data -- the bytes to send
+        :param data: The bytes to send.
         """
         self.data = data
 
@@ -289,9 +289,9 @@ class SCGIConnection:
         """
         Construct a new SCGIConnection.
 
-        rx_buffer_limit -- the maximum number of received bytes that can be
-            buffered locally before being turned into an event; this value
-            bounds the size of request environment
+        :param rx_buffer_limit: The maximum number of received bytes that can
+            be buffered locally before being turned into an event; this value
+            bounds the size of request environment.
         """
         super().__init__()
         self._rx_state = RXState.HEADER_LENGTH
@@ -328,8 +328,8 @@ class SCGIConnection:
         """
         Provide data received over the network to the SCGI connection.
 
-        data -- the received bytes, or a zero-length bytes object if the remote
-            peer closed its end of the connection
+        :param data: The received bytes, or a zero-length bytes object if the
+            remote peer closed its end of the connection.
 
         This method raises LocalProtocolError if a nonzero-length data is
         passed in after a zero-length data has previously been passed. It does
@@ -374,7 +374,7 @@ class SCGIConnection:
         Send an event to the peer and return the bytes to send, or None if the
         connection should now be closed.
 
-        event -- the event to send
+        :param event: The event to send.
 
         This method raises LocalProtocolError if event is not acceptable right
         now.
