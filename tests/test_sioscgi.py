@@ -198,22 +198,6 @@ class TestBadResponseHeaders(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(None, [("Location", "/foo"), ("Other-Thing", "bar")])
 
-    def test_client_redirect_without_content_type(self) -> None:
-        """
-        Test that a client redirect without a Content-Type is rejected
-        (anything other than a local redirect must have a Content-Type).
-        """
-        with self.assertRaises(sioscgi.LocalProtocolError):
-            sioscgi.ResponseHeaders("301 Moved Permanently", [("Location", "/foo"), ("Content-Length", "42")])
-
-    def test_document_without_content_type(self) -> None:
-        """
-        Test that a normal document without a Content-Type is rejected
-        (anything other than a local redirect must have a Content-Type).
-        """
-        with self.assertRaises(sioscgi.LocalProtocolError):
-            sioscgi.ResponseHeaders("200 OK", [("Content-Length", "42")])
-
 
 class TestBadRXData(unittest.TestCase):
     """
