@@ -169,15 +169,13 @@ class ResponseHeaders(Event):
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\n\r\n"
         elif self.location is not None:
             # This is a client redirect with document, which should be served
-            # as Location, then Status, then Content-Type, then everything
-            # else.
-            assert self.content_type is not None  # Checked in sanity checks if status is not None
-            return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\nContent-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
+            # as Location, then Status, then Content-Type (if present), then
+            # everything else.
+            return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + self._content_type_encoded + bytes(self.other_headers)
         else:
             # This is a document response, which should be served as
-            # Content-Type, then Status, then everything else.
-            assert self.content_type is not None  # Checked in sanity checks if status is not None
-            return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
+            # Content-Type (if present), then Status, then everything else.
+            return self._content_type_encoded + B"Status: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
 
     @property
     def succeeding_state(self) -> TXState:
@@ -212,16 +210,8 @@ class ResponseHeaders(Event):
                 self.status.encode("ISO-8859-1")
         except UnicodeError:
             raise LocalProtocolError("A header is not ISO-8859-1-encodable")
-        if self.status is not None:
-            self._sanity_check_with_document()
-        else:
+        if self.status is None:
             self._sanity_check_without_document()
-
-    def _sanity_check_with_document(self) -> None:
-        """Perform sanity checks specific to responses with bodies."""
-        # A response with a document must contain a Content-Type header.
-        if self.content_type is None:
-            raise LocalProtocolError("Header Content-Type is mandatory for document response")
 
     def _sanity_check_without_document(self) -> None:
         """Perform sanity checks specific to responses without bodies."""
@@ -231,6 +221,19 @@ class ResponseHeaders(Event):
             raise LocalProtocolError("Header Location is mandatory for non-document response")
         if self.content_type is not None or self.other_headers:
             raise LocalProtocolError("Headers other than Location are prohibited for non-document response")
+
+    @property
+    def _content_type_encoded(self) -> bytes:
+        """
+        Return the encoded form of the Content-Type header.
+
+        If the header is present, this is its name and value encoded to bytes
+        plus a terminating CRLF. If not, this is the empty bytes.
+        """
+        if self.content_type is not None:
+            return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n"
+        else:
+            return B""
 
 
 class ResponseBody(Event):
