@@ -69,9 +69,9 @@ class RequestHeaders(Event):
     """
     __slots__ = ("environment",)
 
-    environment: Dict[str, str]
+    environment: Dict[str, bytes]
 
-    def __init__(self, environment: Dict[str, str]):
+    def __init__(self, environment: Dict[str, bytes]):
         """
         Construct a new RequestHeaders.
 
@@ -496,13 +496,12 @@ class SCGIConnection:
                         self._report_remote_error("Environment block missing final value")
                     else:
                         # Build the dictionary.
-                        env_dict: Dict[str, str] = {}
+                        env_dict: Dict[str, bytes] = {}
                         for i in range(0, len(split_environment), 2):
                             try:
                                 key = split_environment[i].decode("ISO-8859-1")
-                                value = split_environment[i + 1].decode("ISO-8859-1")
                             except UnicodeError:
-                                self._report_remote_error("Environment variable is not ISO-8859-1")
+                                self._report_remote_error("Environment variable name is not ISO-8859-1")
                                 break
                             if not key:
                                 self._report_remote_error("Environment variable with empty name")
@@ -510,10 +509,10 @@ class SCGIConnection:
                             if key in env_dict:
                                 self._report_remote_error("Duplicate environment variable {}".format(key))
                                 break
-                            env_dict[key] = value
+                            env_dict[key] = split_environment[i + 1]
                         if self._rx_state != RXState.ERROR:
                             # Check for mandatory environment variables.
-                            if env_dict.get("SCGI", None) != "1":
+                            if env_dict.get("SCGI", None) != B"1":
                                 self._report_remote_error("Mandatory variable SCGI not set to 1")
                             else:
                                 # Advance the state machine, keeping any residual
@@ -523,7 +522,7 @@ class SCGIConnection:
                                     self._rx_buffer.append(residue)
                                     self._rx_buffer_length += len(residue)
                                 try:
-                                    self._rx_body_remaining = int(env_dict.get("CONTENT_LENGTH", ""))
+                                    self._rx_body_remaining = int(env_dict.get("CONTENT_LENGTH", B""))
                                     if self._rx_body_remaining < 0:
                                         raise ValueError()
                                     self._event_queue.append(RequestHeaders(env_dict))

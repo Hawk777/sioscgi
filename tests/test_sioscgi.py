@@ -14,7 +14,7 @@ class TestGood(unittest.TestCase):
 
     RX_DATA = B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
     """The raw received bytes."""
-    RX_HEADERS = {"CONTENT_LENGTH": "27", "SCGI": "1", "REQUEST_METHOD": "POST", "REQUEST_URI": "/deepthought"}
+    RX_HEADERS = {"CONTENT_LENGTH": B"27", "SCGI": B"1", "REQUEST_METHOD": B"POST", "REQUEST_URI": B"/deepthought"}
     """The expected decoded request headers."""
     RX_BODY = B"What is the answer to life?"
     """The expected decoded request body."""
