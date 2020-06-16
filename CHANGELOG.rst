@@ -1,3 +1,12 @@
+Changes in 3.0.0
+================
+
+The ``environment`` member of the ``RequestHeaders`` event now maps from
+``str`` to ``bytes`` rather than from ``str`` to ``str``. This is because HTTP
+header values do not have any standards-defined character encoding; therefore,
+it must be left up to each application to decode each header as it sees
+fit, if it intends to use the header value as textual data.
+
 Changes in 2.1.0
 ================
 
