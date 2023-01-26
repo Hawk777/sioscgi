@@ -82,7 +82,7 @@ class RequestHeaders(Event):
         """The environment variables, as a dict from name to value"""
 
     def __repr__(self) -> str:
-        return "RequestHeaders({})".format(self.environment)
+        return f"RequestHeaders({self.environment})"
 
 
 class RequestBody(Event):
@@ -109,7 +109,7 @@ class RequestBody(Event):
         """The body data chunk"""
 
     def __repr__(self) -> str:
-        return "RequestBody({})".format(repr(self.data))
+        return f"RequestBody({self.data!r})"
 
 
 class RequestEnd(Event):
@@ -189,14 +189,14 @@ class ResponseHeaders(Event):
             return TXState.NO_BODY
 
     def __repr__(self) -> str:
-        return "ResponseHeaders(status={}, content_type={}, location={}, other_headers={})".format(self.status, self.content_type, self.location, repr(self.other_headers))
+        return f"ResponseHeaders(status={self.status}, content_type={self.content_type}, location={self.location}, other_headers={self.other_headers!r})"
 
     def _sanity_check(self) -> None:
         """Perform sanity checks to verify that the headers are consistent."""
         # The application must not specify any hop-by-hop headers.
         for name in self.other_headers.keys():
             if wsgiref.util.is_hop_by_hop(name):
-                raise LocalProtocolError("Header {} is hop-by-hop and therefore illegal".format(name))
+                raise LocalProtocolError(f"Header {name} is hop-by-hop and therefore illegal")
         try:
             # The name and value of every header must be encodable in ISO-8859-1…
             bytes(self.other_headers)
@@ -253,7 +253,7 @@ class ResponseBody(Event):
         self.data = data
 
     def __repr__(self) -> str:
-        return "ResponseBody({})".format(repr(self.data))
+        return f"ResponseBody({self.data!r})"
 
 
 class ResponseEnd(Event):
@@ -413,7 +413,7 @@ class SCGIConnection:
             self._tx_state = TXState.DONE
             return None
         else:
-            raise self._report_local_error("Event {} prohibited in state {}".format(type(event), self._tx_state))
+            raise self._report_local_error(f"Event {type(event)} prohibited in state {self._tx_state}")
 
     def _parse_events(self) -> None:
         """
@@ -454,7 +454,7 @@ class SCGIConnection:
                         if self._rx_env_length <= 0:
                             self._report_remote_error("Invalid length-of-environment")
                         elif self._rx_env_length > self._rx_buffer_limit:
-                            self._report_remote_error("Headers too long (got {}, limit {})".format(self._rx_env_length, self._rx_buffer_limit))
+                            self._report_remote_error(f"Headers too long (got {self._rx_env_length}, limit {self._rx_buffer_limit})")
                         else:
                             # Advance the state machine, keeping any residual
                             # bytes.
@@ -507,7 +507,7 @@ class SCGIConnection:
                                 self._report_remote_error("Environment variable with empty name")
                                 break
                             if key in env_dict:
-                                self._report_remote_error("Duplicate environment variable {}".format(key))
+                                self._report_remote_error(f"Duplicate environment variable {key}")
                                 break
                             env_dict[key] = split_environment[i + 1]
                         if self._rx_state != RXState.ERROR:
