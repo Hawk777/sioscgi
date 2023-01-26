@@ -1,3 +1,9 @@
+Changes in 3.0.1
+================
+
+CI configuration, lint configuration, and build system configuration were
+updated. Very minor code cleanup was performed.
+
 Changes in 3.0.0
 ================
 
