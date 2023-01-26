@@ -208,8 +208,8 @@ class ResponseHeaders(Event):
             # … as must the status line.
             if self.status is not None:
                 self.status.encode("ISO-8859-1")
-        except UnicodeError:
-            raise LocalProtocolError("A header is not ISO-8859-1-encodable")
+        except UnicodeError as exp:
+            raise LocalProtocolError("A header is not ISO-8859-1-encodable") from exp
         if self.status is None:
             self._sanity_check_without_document()
 
