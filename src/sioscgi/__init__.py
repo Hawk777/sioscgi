@@ -42,18 +42,21 @@ class ProtocolError(Exception):
 
     This is the base class of LocalProtocolError and RemoteProtocolError.
     """
+    __slots__ = ()
 
 
 class LocalProtocolError(ProtocolError):
     """
     Raised when the local application violates protocol.
     """
+    __slots__ = ()
 
 
 class RemoteProtocolError(ProtocolError):
     """
     Raised when the remote peer violates protocol.
     """
+    __slots__ = ()
 
 
 class Event:
