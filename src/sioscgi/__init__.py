@@ -359,7 +359,7 @@ class SCGIConnection:
             if self._rx_eof:
                 logging.getLogger(__name__).debug("Received %d bytes after EOF", len(data))
                 raise self._report_local_error("Data received after EOF")
-            if self._rx_state != RXState.ERROR:
+            if self._rx_state is not RXState.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
                 self._rx_buffer.append(data)
                 self._rx_buffer_length += len(data)
@@ -513,7 +513,7 @@ class SCGIConnection:
                                 self._report_remote_error(f"Duplicate environment variable {key}")
                                 break
                             env_dict[key] = split_environment[i + 1]
-                        if self._rx_state != RXState.ERROR:
+                        if self._rx_state is not RXState.ERROR:
                             # Check for mandatory environment variables.
                             if env_dict.get("SCGI", None) != B"1":
                                 self._report_remote_error("Mandatory variable SCGI not set to 1")
