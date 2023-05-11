@@ -5,7 +5,7 @@ Implements the SCGI protocol.
 import collections
 import enum
 import logging
-from typing import Deque, Dict, List, Optional, Tuple, Type
+from typing import Optional
 import wsgiref.headers
 import wsgiref.util
 
@@ -72,9 +72,9 @@ class RequestHeaders(Event):
     """
     __slots__ = ("environment",)
 
-    environment: Dict[str, bytes]
+    environment: dict[str, bytes]
 
-    def __init__(self, environment: Dict[str, bytes]):
+    def __init__(self, environment: dict[str, bytes]):
         """
         Construct a new RequestHeaders.
 
@@ -144,7 +144,7 @@ class ResponseHeaders(Event):
     location: Optional[str]
     other_headers: wsgiref.headers.Headers
 
-    def __init__(self, status: Optional[str], headers: List[Tuple[str, str]]):
+    def __init__(self, status: Optional[str], headers: list[tuple[str, str]]):
         """
         Construct a ResponseHeaders.
 
@@ -295,10 +295,10 @@ class SCGIConnection:
 
     _rx_state: RXState
     _tx_state: TXState
-    _error_class: Optional[Type[ProtocolError]]
+    _error_class: Optional[type[ProtocolError]]
     _error_msg: Optional[str]
-    _event_queue: Deque[Event]
-    _rx_buffer: Deque[bytes]
+    _event_queue: collections.deque[Event]
+    _rx_buffer: collections.deque[bytes]
     _rx_buffer_length: int
     _rx_buffer_limit: int
     _rx_eof: bool
@@ -499,7 +499,7 @@ class SCGIConnection:
                         self._report_remote_error("Environment block missing final value")
                     else:
                         # Build the dictionary.
-                        env_dict: Dict[str, bytes] = {}
+                        env_dict: dict[str, bytes] = {}
                         for i in range(0, len(split_environment), 2):
                             try:
                                 key = split_environment[i].decode("ISO-8859-1")
@@ -576,7 +576,7 @@ class SCGIConnection:
         """
         self._report_error(RemoteProtocolError, msg)
 
-    def _report_error(self, error_class: Type[ProtocolError], msg: str) -> None:
+    def _report_error(self, error_class: type[ProtocolError], msg: str) -> None:
         """
         Record an error for later reporting.
 
