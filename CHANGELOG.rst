@@ -1,3 +1,9 @@
+Changes in 4.0.0
+================
+
+CI configuration was updated. Very minor code cleanup was performed. This
+version requires Python 3.9 or higher due to updating to newer type hints.
+
 Changes in 3.0.1
 ================
 
