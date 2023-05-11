@@ -513,7 +513,8 @@ class SCGIConnection:
                                 self._report_remote_error(f"Duplicate environment variable {key}")
                                 break
                             env_dict[key] = split_environment[i + 1]
-                        if self._rx_state is not RXState.ERROR:
+                        # https://github.com/python/mypy/issues/9005
+                        if self._rx_state is not RXState.ERROR:  # type: ignore[comparison-overlap]
                             # Check for mandatory environment variables.
                             if env_dict.get("SCGI", None) != B"1":
                                 self._report_remote_error("Mandatory variable SCGI not set to 1")

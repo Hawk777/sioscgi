@@ -1,6 +1,6 @@
 "mypy":
   image:
-    name: "grktsh/mypy:latest"
+    name: "cytopia/mypy:latest"
     entrypoint: [""]
   cache:
     paths:
