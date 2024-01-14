@@ -58,18 +58,21 @@ class TestGood(unittest.TestCase):
                 self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
                 self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
-                self.assertIsInstance(evt, sioscgi.RequestHeaders)
+                assert isinstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
                 evt = uut.next_event()
-                self.assertIsInstance(evt, sioscgi.RequestBody)
+                assert isinstance(evt, sioscgi.RequestBody)
                 self.assertEqual(evt.data, self.RX_BODY)
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestEnd)
                 evt = uut.next_event()
                 self.assertIsNone(evt)
                 acc = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
+                assert acc is not None
                 if response_body is not None:
-                    acc += uut.send(sioscgi.ResponseBody(response_body))
+                    to_send = uut.send(sioscgi.ResponseBody(response_body))
+                    assert to_send is not None
+                    acc += to_send
                 self.assertEqual(acc, expected_tx)
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
@@ -90,25 +93,28 @@ class TestGood(unittest.TestCase):
                 self.assertIs(uut.rx_state, sioscgi.RXState.DONE)
                 self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
                 evt = uut.next_event()
-                self.assertIsInstance(evt, sioscgi.RequestHeaders)
+                assert isinstance(evt, sioscgi.RequestHeaders)
                 self.assertEqual(evt.environment, self.RX_HEADERS)
                 for i in self.RX_BODY:
                     evt = uut.next_event()
-                    self.assertIsInstance(evt, sioscgi.RequestBody)
+                    assert isinstance(evt, sioscgi.RequestBody)
                     self.assertEqual(evt.data, bytes((i, )))
                 evt = uut.next_event()
                 self.assertIsInstance(evt, sioscgi.RequestEnd)
                 evt = uut.next_event()
                 self.assertIsNone(evt)
                 acc = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
+                assert acc is not None
                 if response_body is not None:
                     for i in response_body:
-                        acc += uut.send(sioscgi.ResponseBody(bytes((i, ))))
+                        to_send = uut.send(sioscgi.ResponseBody(bytes((i, ))))
+                        assert to_send is not None
+                        acc += to_send
                 self.assertEqual(acc, expected_tx)
                 eof = uut.send(sioscgi.ResponseEnd())
                 self.assertIsNone(eof)
 
-    def test_request_response_interleaving(self):
+    def test_request_response_interleaving(self) -> None:
         """
         Test that response data can be shipped out before the request body is
         finished.
@@ -121,6 +127,7 @@ class TestGood(unittest.TestCase):
         supported by the environment.
         """
         _, response_status, response_headers, response_body, response_expected = self.RESPONSES[0]
+        assert response_body is not None
 
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,")
@@ -129,23 +136,28 @@ class TestGood(unittest.TestCase):
         self.assertIsNone(uut.next_event())
 
         out_data = uut.send(sioscgi.ResponseHeaders(response_status, response_headers))
+        assert out_data is not None
 
         uut.receive_data(B"What is")
         evt = uut.next_event()
-        self.assertIsInstance(evt, sioscgi.RequestBody)
+        assert isinstance(evt, sioscgi.RequestBody)
         self.assertEqual(evt.data, B"What is")
         self.assertIsNone(uut.next_event())
 
-        out_data += uut.send(sioscgi.ResponseBody(response_body[:len(response_body) // 2]))
+        to_send = uut.send(sioscgi.ResponseBody(response_body[:len(response_body) // 2]))
+        assert to_send is not None
+        out_data += to_send
 
         uut.receive_data(B" the answer to life?")
         evt = uut.next_event()
-        self.assertIsInstance(evt, sioscgi.RequestBody)
+        assert isinstance(evt, sioscgi.RequestBody)
         self.assertEqual(evt.data, B" the answer to life?")
         self.assertIsInstance(uut.next_event(), sioscgi.RequestEnd)
         self.assertIsNone(uut.next_event())
 
-        out_data += uut.send(sioscgi.ResponseBody(response_body[len(response_body) // 2:]))
+        to_send = uut.send(sioscgi.ResponseBody(response_body[len(response_body) // 2:]))
+        assert to_send is not None
+        out_data += to_send
         self.assertIsNone(uut.send(sioscgi.ResponseEnd()))
 
         self.assertEqual(out_data, response_expected)
