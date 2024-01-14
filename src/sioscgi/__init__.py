@@ -5,7 +5,6 @@ Implements the SCGI protocol.
 import collections
 import enum
 import logging
-from typing import Optional
 import wsgiref.headers
 import wsgiref.util
 
@@ -139,12 +138,12 @@ class ResponseHeaders(Event):
     """
     __slots__ = ("status", "content_type", "location", "other_headers")
 
-    status: Optional[str]
-    content_type: Optional[str]
-    location: Optional[str]
+    status: str | None
+    content_type: str | None
+    location: str | None
     other_headers: wsgiref.headers.Headers
 
-    def __init__(self, status: Optional[str], headers: list[tuple[str, str]]):
+    def __init__(self, status: str | None, headers: list[tuple[str, str]]):
         """
         Construct a ResponseHeaders.
 
@@ -295,8 +294,8 @@ class SCGIConnection:
 
     _rx_state: RXState
     _tx_state: TXState
-    _error_class: Optional[type[ProtocolError]]
-    _error_msg: Optional[str]
+    _error_class: type[ProtocolError] | None
+    _error_msg: str | None
     _event_queue: collections.deque[Event]
     _rx_buffer: collections.deque[bytes]
     _rx_buffer_length: int
@@ -368,7 +367,7 @@ class SCGIConnection:
             self._rx_eof = True
         self._parse_events()
 
-    def next_event(self) -> Optional[Event]:
+    def next_event(self) -> Event | None:
         """
         Return the next event in the event queue.
 
@@ -389,7 +388,7 @@ class SCGIConnection:
         else:
             return None
 
-    def send(self, event: Event) -> Optional[bytes]:
+    def send(self, event: Event) -> bytes | None:
         """
         Send an event to the peer and return the bytes to send, or None if the
         connection should now be closed.

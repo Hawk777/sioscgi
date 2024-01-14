@@ -7,7 +7,7 @@
       - .mypy_cache/
     key: "mypy"
   script:
-    - mypy --strict src
+    - mypy --strict src tests
 
 "pycodestyle":
   image:
