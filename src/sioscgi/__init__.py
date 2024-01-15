@@ -27,6 +27,7 @@ class TXState(enum.Enum):
     """
     The possible states the transmit half of the connection can be in.
     """
+
     HEADERS = enum.auto()
     BODY = enum.auto()
     NO_BODY = enum.auto()
@@ -41,6 +42,7 @@ class ProtocolError(Exception):
 
     This is the base class of LocalProtocolError and RemoteProtocolError.
     """
+
     __slots__ = ()
 
 
@@ -48,6 +50,7 @@ class LocalProtocolError(ProtocolError):
     """
     Raised when the local application violates protocol.
     """
+
     __slots__ = ()
 
 
@@ -55,6 +58,7 @@ class RemoteProtocolError(ProtocolError):
     """
     Raised when the remote peer violates protocol.
     """
+
     __slots__ = ()
 
 
@@ -62,6 +66,7 @@ class Event:
     """
     The base class of all events returned by an SCGIConnection.
     """
+
     __slots__ = ()
 
 
@@ -69,6 +74,7 @@ class RequestHeaders(Event):
     """
     Reports that a request has started and carries the environment data.
     """
+
     __slots__ = ("environment",)
 
     environment: dict[str, bytes]
@@ -96,6 +102,7 @@ class RequestBody(Event):
     No RequestBody event carries an empty chunk; consequently, a request without a body
     never generates RequestBody events.
     """
+
     __slots__ = ("data",)
 
     data: bytes
@@ -120,6 +127,7 @@ class RequestEnd(Event):
 
     Once this event has been delivered, the application can start sending the response.
     """
+
     __slots__ = ()
 
     def __repr__(self) -> str:
@@ -134,6 +142,7 @@ class ResponseHeaders(Event):
     if appropriate to the response, one or more ResponseBody events should be sent,
     followed by a ResponseEnd.
     """
+
     __slots__ = ("status", "content_type", "location", "other_headers")
 
     status: str | None
@@ -164,17 +173,33 @@ class ResponseHeaders(Event):
         if self.status is None:
             # This is a local redirect or client redirect without document, which should
             # be served as a Location header and nothing else.
-            assert self.location is not None  # Checked in sanity checks if status is None
-            return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\n\r\n"
+            #
+            # Checked in sanity checks if status is None
+            assert self.location is not None
+            return b"Location: " + self.location.encode("ISO-8859-1") + b"\r\n\r\n"
         elif self.location is not None:
             # This is a client redirect with document, which should be served as
             # Location, then Status, then Content-Type (if present), then everything
             # else.
-            return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + self._content_type_encoded + bytes(self.other_headers)
+            return (
+                b"Location: "
+                + self.location.encode("ISO-8859-1")
+                + b"\r\nStatus: "
+                + self.status.encode("ISO-8859-1")
+                + b"\r\n"
+                + self._content_type_encoded
+                + bytes(self.other_headers)
+            )
         else:
             # This is a document response, which should be served as Content-Type (if
             # present), then Status, then everything else.
-            return self._content_type_encoded + B"Status: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
+            return (
+                self._content_type_encoded
+                + b"Status: "
+                + self.status.encode("ISO-8859-1")
+                + b"\r\n"
+                + bytes(self.other_headers)
+            )
 
     @property
     def succeeding_state(self) -> TXState:
@@ -194,7 +219,9 @@ class ResponseHeaders(Event):
         # The application must not specify any hop-by-hop headers.
         for name in self.other_headers.keys():
             if wsgiref.util.is_hop_by_hop(name):
-                raise LocalProtocolError(f"Header {name} is hop-by-hop and therefore illegal")
+                raise LocalProtocolError(
+                    f"Header {name} is hop-by-hop and therefore illegal"
+                )
         try:
             # The name and value of every header must be encodable in ISO-8859-1…
             bytes(self.other_headers)
@@ -215,9 +242,13 @@ class ResponseHeaders(Event):
         """Perform sanity checks specific to responses without bodies."""
         # A response without a document must contain a Location header and nothing else.
         if self.location is None:
-            raise LocalProtocolError("Header Location is mandatory for non-document response")
+            raise LocalProtocolError(
+                "Header Location is mandatory for non-document response"
+            )
         if self.content_type is not None or self.other_headers:
-            raise LocalProtocolError("Headers other than Location are prohibited for non-document response")
+            raise LocalProtocolError(
+                "Headers other than Location are prohibited for non-document response"
+            )
 
     @property
     def _content_type_encoded(self) -> bytes:
@@ -228,15 +259,16 @@ class ResponseHeaders(Event):
         terminating CRLF. If not, this is the empty bytes.
         """
         if self.content_type is not None:
-            return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n"
+            return b"Content-Type: " + self.content_type.encode("ISO-8859-1") + b"\r\n"
         else:
-            return B""
+            return b""
 
 
 class ResponseBody(Event):
     """
     Sends a chunk of response body to the SCGI client.
     """
+
     __slots__ = ("data",)
 
     data: bytes
@@ -259,6 +291,7 @@ class ResponseEnd(Event):
 
     This event must be the last one sent in a normal response.
     """
+
     __slots__ = ()
 
     def __repr__(self) -> str:
@@ -351,7 +384,9 @@ class SCGIConnection:
         """
         if data:
             if self._rx_eof:
-                logging.getLogger(__name__).debug("Received %d bytes after EOF", len(data))
+                logging.getLogger(__name__).debug(
+                    "Received %d bytes after EOF", len(data)
+                )
                 raise self._report_local_error("Data received after EOF")
             if self._rx_state is not RXState.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
@@ -399,7 +434,9 @@ class SCGIConnection:
         elif self._tx_state is TXState.HEADERS and isinstance(event, ResponseHeaders):
             self._tx_state = event.succeeding_state
             return event.encode()
-        elif self._tx_state is TXState.BODY and isinstance(event, (ResponseBody, ResponseEnd)):
+        elif self._tx_state is TXState.BODY and isinstance(
+            event, (ResponseBody, ResponseEnd)
+        ):
             if isinstance(event, ResponseBody):
                 return event.data
             else:
@@ -409,7 +446,9 @@ class SCGIConnection:
             self._tx_state = TXState.DONE
             return None
         else:
-            raise self._report_local_error(f"Event {type(event)} prohibited in state {self._tx_state}")
+            raise self._report_local_error(
+                f"Event {type(event)} prohibited in state {self._tx_state}"
+            )
 
     def _parse_events(self) -> None:
         """
@@ -424,19 +463,19 @@ class SCGIConnection:
             logger.debug("In RX_HEADER_LENGTH")
             if self._rx_buffer:
                 # The length-of-environment integer ends with a colon.
-                index = self._rx_buffer[-1].find(B":")
+                index = self._rx_buffer[-1].find(b":")
                 if index >= 0:
                     logger.debug("Found : at %d", index)
                     # We have the full length-of-environment integer and its terminating
                     # colon. Split up received data into the length-of-environment
                     # integer, the colon (which we discard), and any bytes following the
                     # colon (residue).
-                    residue = self._rx_buffer[-1][index + 1:]
+                    residue = self._rx_buffer[-1][index + 1 :]
                     if index == 0:
                         self._rx_buffer.pop()
                     else:
                         self._rx_buffer[-1] = self._rx_buffer[-1][:index]
-                    consumed = B"".join(self._rx_buffer)
+                    consumed = b"".join(self._rx_buffer)
                     self._rx_buffer.clear()
                     self._rx_buffer_length = 0
                     # Parse the length-of-environment integer.
@@ -449,14 +488,20 @@ class SCGIConnection:
                         if self._rx_env_length <= 0:
                             self._report_remote_error("Invalid length-of-environment")
                         elif self._rx_env_length > self._rx_buffer_limit:
-                            self._report_remote_error(f"Headers too long (got {self._rx_env_length}, limit {self._rx_buffer_limit})")
+                            self._report_remote_error(
+                                f"Headers too long (got {self._rx_env_length}, limit {self._rx_buffer_limit})"
+                            )
                         else:
                             # Advance the state machine, keeping any residual bytes.
                             self._rx_state = RXState.HEADERS
                             if residue:
                                 self._rx_buffer.append(residue)
                                 self._rx_buffer_length += len(residue)
-                            logger.debug("Length of headers is %d, residue is %d bytes", self._rx_env_length, len(residue))
+                            logger.debug(
+                                "Length of headers is %d, residue is %d bytes",
+                                self._rx_env_length,
+                                len(residue),
+                            )
         if self._rx_state is RXState.HEADERS:
             logger.debug("In RX_HEADERS")
             if self._rx_buffer_length > self._rx_env_length:
@@ -467,12 +512,12 @@ class SCGIConnection:
                 assert last_chunk_start_pos <= self._rx_env_length
                 comma_pos = self._rx_env_length - last_chunk_start_pos
                 comma = self._rx_buffer[-1][comma_pos]
-                residue = self._rx_buffer[-1][comma_pos + 1:]
+                residue = self._rx_buffer[-1][comma_pos + 1 :]
                 if last_chunk_start_pos == self._rx_env_length:
                     self._rx_buffer.pop()
                 else:
                     self._rx_buffer[-1] = self._rx_buffer[-1][:comma_pos]
-                environment = B"".join(self._rx_buffer)
+                environment = b"".join(self._rx_buffer)
                 self._rx_buffer.clear()
                 self._rx_buffer_length = 0
                 # Check that the comma is a comma.
@@ -483,10 +528,12 @@ class SCGIConnection:
                     self._report_remote_error("Environment block not NUL-terminated")
                 else:
                     # Split the environment block into NUL-terminated chunks.
-                    split_environment = environment[:-1].split(B"\x00")
+                    split_environment = environment[:-1].split(b"\x00")
                     # Check that there are an even number of parts.
                     if len(split_environment) % 2 == 1:
-                        self._report_remote_error("Environment block missing final value")
+                        self._report_remote_error(
+                            "Environment block missing final value"
+                        )
                     else:
                         # Build the dictionary.
                         env_dict: dict[str, bytes] = {}
@@ -494,20 +541,28 @@ class SCGIConnection:
                             try:
                                 key = split_environment[i].decode("ISO-8859-1")
                             except UnicodeError:
-                                self._report_remote_error("Environment variable name is not ISO-8859-1")
+                                self._report_remote_error(
+                                    "Environment variable name is not ISO-8859-1"
+                                )
                                 break
                             if not key:
-                                self._report_remote_error("Environment variable with empty name")
+                                self._report_remote_error(
+                                    "Environment variable with empty name"
+                                )
                                 break
                             if key in env_dict:
-                                self._report_remote_error(f"Duplicate environment variable {key}")
+                                self._report_remote_error(
+                                    f"Duplicate environment variable {key}"
+                                )
                                 break
                             env_dict[key] = split_environment[i + 1]
                         # https://github.com/python/mypy/issues/9005
                         if self._rx_state is not RXState.ERROR:  # type: ignore[comparison-overlap]
                             # Check for mandatory environment variables.
-                            if env_dict.get("SCGI", None) != B"1":
-                                self._report_remote_error("Mandatory variable SCGI not set to 1")
+                            if env_dict.get("SCGI", None) != b"1":
+                                self._report_remote_error(
+                                    "Mandatory variable SCGI not set to 1"
+                                )
                             else:
                                 # Advance the state machine, keeping any residual bytes.
                                 self._rx_state = RXState.BODY
@@ -515,15 +570,27 @@ class SCGIConnection:
                                     self._rx_buffer.append(residue)
                                     self._rx_buffer_length += len(residue)
                                 try:
-                                    self._rx_body_remaining = int(env_dict.get("CONTENT_LENGTH", B""))
+                                    self._rx_body_remaining = int(
+                                        env_dict.get("CONTENT_LENGTH", b"")
+                                    )
                                     if self._rx_body_remaining < 0:
                                         raise ValueError()
                                     self._event_queue.append(RequestHeaders(env_dict))
-                                    logger.debug("Retrieved %d headers, residue is %d bytes", len(env_dict), len(residue))
+                                    logger.debug(
+                                        "Retrieved %d headers, residue is %d bytes",
+                                        len(env_dict),
+                                        len(residue),
+                                    )
                                 except ValueError:
-                                    self._report_remote_error("CONTENT_LENGTH missing or not a whole number")
+                                    self._report_remote_error(
+                                        "CONTENT_LENGTH missing or not a whole number"
+                                    )
         if self._rx_state is RXState.BODY:
-            logger.debug("In RX_BODY, buffer length = %d, body remaining = %d", self._rx_buffer_length, self._rx_body_remaining)
+            logger.debug(
+                "In RX_BODY, buffer length = %d, body remaining = %d",
+                self._rx_buffer_length,
+                self._rx_body_remaining,
+            )
             if self._rx_buffer_length <= self._rx_body_remaining:
                 for chunk in self._rx_buffer:
                     self._event_queue.append(RequestBody(chunk))
@@ -541,7 +608,11 @@ class SCGIConnection:
                 self._report_remote_error("Request body longer than CONTENT_LENGTH")
         if self._rx_buffer_length > self._rx_buffer_limit:
             self._report_remote_error("Too many bytes buffered")
-        elif self._rx_eof and self._rx_state in {RXState.HEADER_LENGTH, RXState.HEADERS, RXState.BODY}:
+        elif self._rx_eof and self._rx_state in {
+            RXState.HEADER_LENGTH,
+            RXState.HEADERS,
+            RXState.BODY,
+        }:
             self._report_remote_error("Premature EOF")
 
     def _report_local_error(self, msg: str) -> LocalProtocolError:
