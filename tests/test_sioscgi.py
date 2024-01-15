@@ -440,6 +440,25 @@ class TestBadResponseSequence(unittest.TestCase):
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(sioscgi.ResponseEnd())
 
+    def test_headers_hop_by_hop(self: TestBadResponseSequence) -> None:
+        """Test trying to send a hop-by-hop header."""
+        uut = sioscgi.SCGIConnection()
+        uut.receive_data(TestGood.RX_DATA)
+        while uut.next_event() is not None:
+            pass
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
+        with self.assertRaises(sioscgi.LocalProtocolError):
+            uut.send(
+                sioscgi.ResponseHeaders(
+                    "200 OK",
+                    [
+                        ("Content-Type", "text/plain; charset=UTF-8"),
+                        ("Content-Length", "27"),
+                        ("Connection", "keep-alive"),
+                    ],
+                )
+            )
+
 
 class TestOtherErrors(unittest.TestCase):
     """Test other miscellaneous errors."""
