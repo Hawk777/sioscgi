@@ -645,8 +645,6 @@ class SCGIConnection:
             logger.debug("In RX_DONE")
             if self._rx_buffer_length:
                 raise RemoteProtocolError("Request body longer than CONTENT_LENGTH")
-        if self._rx_buffer_length > self._rx_buffer_limit:
-            raise RemoteProtocolError("Too many bytes buffered")
         if self._rx_eof and self._rx_state in {
             RXState.HEADER_LENGTH,
             RXState.HEADERS,
