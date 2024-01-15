@@ -217,7 +217,9 @@ class ResponseHeaders(Event):
         :raises LocalProtocolError: If a sanity check fails.
         """
         # The application must not specify any hop-by-hop headers.
-        for name in self.other_headers.keys():
+        #
+        # .keys() is necessary because wsgiref.headers.Headers objects are not iterable!
+        for name in self.other_headers.keys():  # noqa: SIM118
             if wsgiref.util.is_hop_by_hop(name):
                 raise LocalProtocolError(
                     f"Header {name} is hop-by-hop and therefore illegal"
