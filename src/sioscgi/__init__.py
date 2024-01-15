@@ -660,7 +660,7 @@ class SCGIConnection:
         Record and raise a local protocol error.
 
         :param msg: The error message.
-        :raise LocalProtocolError: Always, with the given message.
+        :return LocalProtocolError: The exception that the caller should raise.
         """
         self._report_error(LocalProtocolError, msg)
         return LocalProtocolError(msg)
