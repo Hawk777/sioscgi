@@ -449,7 +449,7 @@ class SCGIConnection:
 
         :raises LocalProtocolError: If a LocalProtocolError was previously raised by
             some other method of this connection.
-        :raises RemoteProtocolError: If the remove peer violated SCGI protocol rules.
+        :raises RemoteProtocolError: If the remote peer violated SCGI protocol rules.
         """
         if self._rx_state is RXState.ERROR:
             assert self._error_class is not None  # Implied by RXState.ERROR
