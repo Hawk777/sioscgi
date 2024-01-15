@@ -1,6 +1,4 @@
-"""
-Tests the sioscgi module.
-"""
+"""Tests the sioscgi module."""
 
 import unittest
 
@@ -8,9 +6,7 @@ import sioscgi
 
 
 class TestGood(unittest.TestCase):
-    """
-    Test the normal cases where things work properly.
-    """
+    """Test the normal cases where things work properly."""
 
     RX_DATA = b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
     """The raw received bytes."""
@@ -205,25 +201,17 @@ class TestGood(unittest.TestCase):
 
 
 class TestBadResponseHeaders(unittest.TestCase):
-    """
-    Check that various occurrences of invalid response header structures are caught and
-    rejected.
-    """
+    """Check that various invalid response header structures are caught and rejected."""
 
     def test_non_latin1_content_type(self) -> None:
-        """
-        Test that a Content-Type header with a non-ISO8859-1-encodable value is
-        rejected.
-        """
+        """Test rejection of an unencodable Content-Type header value."""
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(
                 "200 OK", [("Content-Type", "text/Ω"), ("Content-Length", "0")]
             )
 
     def test_non_latin1_location(self) -> None:
-        """
-        Test that a Location header with a non-ISO8859-1-encodable value is rejected.
-        """
+        """Test rejection of an unencodable Location header value."""
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(
                 "301 Moved Permanently",
@@ -235,10 +223,7 @@ class TestBadResponseHeaders(unittest.TestCase):
             )
 
     def test_non_latin1_other(self) -> None:
-        """
-        Test that a header other than Content-Type or Location with a
-        non-ISO8859-1-encodable value is rejected.
-        """
+        """Test rejection of an unencodable general header value."""
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(
                 "200 OK",
@@ -251,8 +236,9 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_local_redirect_with_content_type(self) -> None:
         """
-        Test that a local redirect with a Content-Type header is rejected (a local
-        redirect must not have any headers other than Location).
+        Test rejection of a local redirect with a Content-Type.
+
+        A local redirect must not have any headers other than Location.
         """
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(
@@ -262,8 +248,9 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_local_redirect_with_other_header(self) -> None:
         """
-        Test that a local redirect with an additional header other than Content-Type is
-        rejected (a local redirect must not have any headers other than Location).
+        Test rejection of a local redirect with an extra general header.
+
+        A local redirect must not have any headers other than Location.
         """
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(
@@ -272,14 +259,10 @@ class TestBadResponseHeaders(unittest.TestCase):
 
 
 class TestBadRXData(unittest.TestCase):
-    """
-    Test various cases of invalid received data.
-    """
+    """Test various cases of invalid received data."""
 
     def test_premature_eof(self) -> None:
-        """
-        Test that an exception is raised if the received data is truncated.
-        """
+        """Test rejection of truncated received data."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life"
@@ -289,10 +272,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_no_comma(self) -> None:
-        """
-        Test that an exception is raised if the received headers are not properly
-        netstring-terminated with a comma.
-        """
+        """Test rejection of a netstring encoding missing its trailing comma."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00@What is the answer to life?"
@@ -302,9 +282,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_no_scgi(self) -> None:
-        """
-        Test that an exception is raised if the SCGI header is missing.
-        """
+        """Test rejection of a missing SCGI header."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"63:CONTENT_LENGTH\x0027\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
@@ -314,9 +292,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_no_content_length(self) -> None:
-        """
-        Test that an exception is raised if the CONTENT_LENGTH header is missing.
-        """
+        """Test rejection of a missing CONTENT_LENGTH header."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"52:SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00@What is the answer to life?"
@@ -326,9 +302,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_no_nul(self) -> None:
-        """
-        Test that an exception is raised if the header block does not end with a NUL.
-        """
+        """Test rejection of a non-NUL-terminated header block."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"69:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought,What is the answer to life?"
@@ -339,8 +313,9 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_odd_number(self) -> None:
         """
-        Test that an exception is raised if the number of NUL-terminated strings in the
-        headers block is odd, implying a key without a value or a value without a key.
+        Test rejection of an odd number of NUL-terminated strings in the header block.
+
+        This implies the presence of a key without a value or vice versa.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
@@ -352,8 +327,9 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_wrong_scgi(self) -> None:
         """
-        Test that an exception is raised if the SCGI header has the wrong value,
-        implying a different protocol version is in use.
+        Test rejection of an incorrect SCGI header value.
+
+        This implies that a different protocol version is in use.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
@@ -364,10 +340,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_length_space(self) -> None:
-        """
-        Test that a space starting the netstring length for the headers block is
-        rejected.
-        """
+        """Test rejection of a netstring length starting with a space."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(b" ")
         uut.receive_data(b"")
@@ -375,10 +348,7 @@ class TestBadRXData(unittest.TestCase):
             uut.next_event()
 
     def test_headers_length_non_integer(self) -> None:
-        """
-        Test that a non-integer starting the netstring length for the headers block is
-        rejected.
-        """
+        """Test rejection of a netstring length starting with a non-integer."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(b"A")
         uut.receive_data(b"")
@@ -387,15 +357,10 @@ class TestBadRXData(unittest.TestCase):
 
 
 class TestBadResponseSequence(unittest.TestCase):
-    """
-    Test various cases of trying to send response events at the wrong time or in the
-    wrong order.
-    """
+    """Test trying to send response events at the wrong time or in the wrong order."""
 
     def test_response_body_before_headers(self) -> None:
-        """
-        Test trying to send some response body before sending the response headers.
-        """
+        """Test trying to send some response body before sending the headers."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
@@ -408,9 +373,7 @@ class TestBadResponseSequence(unittest.TestCase):
             uut.send(tx_body)
 
     def test_response_end_before_headers(self) -> None:
-        """
-        Test trying to send the response end marker before sending the response headers.
-        """
+        """Test trying to send the response end marker before sending the headers."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
@@ -423,14 +386,10 @@ class TestBadResponseSequence(unittest.TestCase):
 
 
 class TestOtherErrors(unittest.TestCase):
-    """
-    Test other miscellaneous errors.
-    """
+    """Test other miscellaneous errors."""
 
     def test_rx_after_eof(self) -> None:
-        """
-        Test that receiving additional data after EOF raises an exception.
-        """
+        """Test that receiving additional data after EOF raises an exception."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
             b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"

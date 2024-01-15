@@ -1,6 +1,4 @@
-"""
-Implements the SCGI protocol.
-"""
+"""Implements the SCGI protocol."""
 
 import collections
 import enum
@@ -11,9 +9,7 @@ import wsgiref.util
 
 @enum.unique
 class RXState(enum.Enum):
-    """
-    The possible states the receive half of the connection can be in.
-    """
+    """The possible states the receive half of the connection can be in."""
 
     HEADER_LENGTH = enum.auto()
     HEADERS = enum.auto()
@@ -24,9 +20,7 @@ class RXState(enum.Enum):
 
 @enum.unique
 class TXState(enum.Enum):
-    """
-    The possible states the transmit half of the connection can be in.
-    """
+    """The possible states the transmit half of the connection can be in."""
 
     HEADERS = enum.auto()
     BODY = enum.auto()
@@ -37,8 +31,9 @@ class TXState(enum.Enum):
 
 class ProtocolError(Exception):
     """
-    Raised when a violation of protocol occurs, by either the remote peer or the local
-    application.
+    Raised when a violation of protocol occurs.
+
+    The violation may be by either the remote peer or the local application.
 
     This is the base class of LocalProtocolError and RemoteProtocolError.
     """
@@ -47,33 +42,25 @@ class ProtocolError(Exception):
 
 
 class LocalProtocolError(ProtocolError):
-    """
-    Raised when the local application violates protocol.
-    """
+    """Raised when the local application violates protocol."""
 
     __slots__ = ()
 
 
 class RemoteProtocolError(ProtocolError):
-    """
-    Raised when the remote peer violates protocol.
-    """
+    """Raised when the remote peer violates protocol."""
 
     __slots__ = ()
 
 
 class Event:
-    """
-    The base class of all events returned by an SCGIConnection.
-    """
+    """The base class of all events returned by an SCGIConnection."""
 
     __slots__ = ()
 
 
 class RequestHeaders(Event):
-    """
-    Reports that a request has started and carries the environment data.
-    """
+    """Reports that a request has started and carries the environment data."""
 
     __slots__ = ("environment",)
 
@@ -122,10 +109,11 @@ class RequestBody(Event):
 
 class RequestEnd(Event):
     """
-    Reports that a request has finished and both headers and all body data have been
-    delivered in preceding events.
+    Reports that a request has finished.
 
-    Once this event has been delivered, the application can start sending the response.
+    When this event occurs, both headers and all body data have been delivered in
+    preceding events. Once this event has been delivered, the application can start
+    sending the response.
     """
 
     __slots__ = ()
@@ -157,6 +145,7 @@ class ResponseHeaders(Event):
         :param status: The HTTP status code and string (e.g. “200 OK”), or None if a
             local redirect or client redirect without document is being generated.
         :param headers: A list of (name, value) tuples of HTTP headers.
+        :raises LocalProtocolError: If the application provided invalid data.
         """
         self.status = status
         self.other_headers = wsgiref.headers.Headers(list(headers))
@@ -167,9 +156,7 @@ class ResponseHeaders(Event):
         self._sanity_check()
 
     def encode(self) -> bytes:
-        """
-        Convert this event into its encoding as raw bytes.
-        """
+        """Convert this event into its encoding as raw bytes."""
         if self.status is None:
             # This is a local redirect or client redirect without document, which should
             # be served as a Location header and nothing else.
@@ -203,9 +190,7 @@ class ResponseHeaders(Event):
 
     @property
     def succeeding_state(self) -> TXState:
-        """
-        Return the state the state machine should be in after sending these headers.
-        """
+        """Return the state the transmit half be in after sending these headers."""
         if self.status is not None:
             return TXState.BODY
         else:
@@ -215,7 +200,11 @@ class ResponseHeaders(Event):
         return f"ResponseHeaders(status={self.status}, content_type={self.content_type}, location={self.location}, other_headers={self.other_headers!r})"
 
     def _sanity_check(self) -> None:
-        """Perform sanity checks to verify that the headers are consistent."""
+        """
+        Perform sanity checks to verify that the headers are consistent.
+
+        :raises LocalProtocolError: If a sanity check fails.
+        """
         # The application must not specify any hop-by-hop headers.
         for name in self.other_headers.keys():
             if wsgiref.util.is_hop_by_hop(name):
@@ -239,7 +228,11 @@ class ResponseHeaders(Event):
             self._sanity_check_without_document()
 
     def _sanity_check_without_document(self) -> None:
-        """Perform sanity checks specific to responses without bodies."""
+        """
+        Perform sanity checks specific to responses without bodies.
+
+        :raises LocalProtocolError: If a sanity check fails.
+        """
         # A response without a document must contain a Location header and nothing else.
         if self.location is None:
             raise LocalProtocolError(
@@ -265,9 +258,7 @@ class ResponseHeaders(Event):
 
 
 class ResponseBody(Event):
-    """
-    Sends a chunk of response body to the SCGI client.
-    """
+    """Sends a chunk of response body to the SCGI client."""
 
     __slots__ = ("data",)
 
@@ -366,9 +357,7 @@ class SCGIConnection:
 
     @property
     def tx_state(self) -> TXState:
-        """
-        The state the transmit half of the connection is currently in.
-        """
+        """The state the transmit half of the connection is currently in."""
         return self._tx_state
 
     def receive_data(self, data: bytes) -> None:
@@ -377,10 +366,8 @@ class SCGIConnection:
 
         :param data: The received bytes, or a zero-length bytes object if the remote
             peer closed its end of the connection.
-
-        This method raises LocalProtocolError if a nonzero-length data is passed in
-        after a zero-length data has previously been passed. It does not raise
-        exceptions for any other reason.
+        :raises LocalProtocolError: If this method is called again after first being
+            called with a zero-length parameter.
         """
         if data:
             if self._rx_eof:
@@ -406,9 +393,9 @@ class SCGIConnection:
         until a more convenient time, or even call receive_data again before receiving
         all the events.
 
-        This method raises RemoteProtocolError in the event of a remote protocol error,
-        or LocalProtocolError in the event that the same exception was previously raised
-        by some other method.
+        :raises LocalProtocolError: If a LocalProtocolError was previously raised by
+            some other method of this connection.
+        :raises RemoteProtocolError: If the remove peer violated SCGI protocol rules.
         """
         if self._rx_state is RXState.ERROR:
             assert self._error_class is not None  # Implied by RXState.ERROR
@@ -420,12 +407,10 @@ class SCGIConnection:
 
     def send(self, event: Event) -> bytes | None:
         """
-        Send an event to the peer and return the bytes to send, or None if the
-        connection should now be closed.
+        Send an event to the peer.
 
         :param event: The event to send.
-
-        This method raises LocalProtocolError if event is not acceptable right now.
+        :raises LocalProtocolError: If the event is not acceptable right now.
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
         if self._tx_state is TXState.ERROR:
@@ -451,10 +436,7 @@ class SCGIConnection:
             )
 
     def _parse_events(self) -> None:
-        """
-        Remove bytes from the receive buffer and turn them into events in the event
-        queue.
-        """
+        """Remove bytes from the receive buffer and create events in the event queue."""
         # Throughout this method, we assume that at most one element has been added to
         # the receive buffer; this is safe because this method is called from
         # receive_data, so we eagerly parse as much as we can on every received chunk.
@@ -620,6 +602,7 @@ class SCGIConnection:
         Record and raise a local protocol error.
 
         :param msg: The error message.
+        :raise LocalProtocolError: Always, with the given message.
         """
         self._report_error(LocalProtocolError, msg)
         return LocalProtocolError(msg)
