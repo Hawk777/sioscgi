@@ -436,7 +436,14 @@ class SCGIConnection:
         else:
             logging.getLogger(__name__).debug("Received EOF")
             self._rx_eof = True
-        self._parse_events()
+        # _parse_events raises a RemoteProtocolError if the peer violates protocol. Such
+        # problems should not be reported via receive_data, but rather via next_event.
+        # Thus, should such an exception be raised, stash it away instead of propagating
+        # it.
+        try:
+            self._parse_events()
+        except RemoteProtocolError as exp:
+            self._report_error(RemoteProtocolError, str(exp))
 
     def next_event(self: SCGIConnection) -> Event | None:
         """
@@ -487,7 +494,11 @@ class SCGIConnection:
         )
 
     def _parse_events(self: SCGIConnection) -> None:
-        """Remove bytes from the receive buffer and create events in the event queue."""
+        """
+        Remove bytes from the receive buffer and create events in the event queue.
+
+        :raises RemoteProtocolError: If the remote peer violated SCGI protocol rules.
+        """
         # Throughout this method, we assume that at most one element has been added to
         # the receive buffer; this is safe because this method is called from
         # receive_data, so we eagerly parse as much as we can on every received chunk.
@@ -514,28 +525,28 @@ class SCGIConnection:
                     # Parse the length-of-environment integer.
                     try:
                         self._rx_env_length = int(consumed.decode("ASCII"))
-                    except ValueError:
-                        self._report_remote_error("Invalid length-of-environment")
-                    else:
-                        # Sanity check the length-of-environment integer.
-                        if self._rx_env_length <= 0:
-                            self._report_remote_error("Invalid length-of-environment")
-                        elif self._rx_env_length > self._rx_buffer_limit:
-                            self._report_remote_error(
-                                f"Headers too long (got {self._rx_env_length}, "
-                                f"limit {self._rx_buffer_limit})"
-                            )
-                        else:
-                            # Advance the state machine, keeping any residual bytes.
-                            self._rx_state = RXState.HEADERS
-                            if residue:
-                                self._rx_buffer.append(residue)
-                                self._rx_buffer_length += len(residue)
-                            logger.debug(
-                                "Length of headers is %d, residue is %d bytes",
-                                self._rx_env_length,
-                                len(residue),
-                            )
+                    except ValueError as exp:
+                        raise RemoteProtocolError(
+                            "Invalid length-of-environment"
+                        ) from exp
+                    # Sanity check the length-of-environment integer.
+                    if self._rx_env_length <= 0:
+                        raise RemoteProtocolError("Invalid length-of-environment")
+                    if self._rx_env_length > self._rx_buffer_limit:
+                        raise RemoteProtocolError(
+                            f"Headers too long (got {self._rx_env_length}, "
+                            f"limit {self._rx_buffer_limit})"
+                        )
+                    # Advance the state machine, keeping any residual bytes.
+                    self._rx_state = RXState.HEADERS
+                    if residue:
+                        self._rx_buffer.append(residue)
+                        self._rx_buffer_length += len(residue)
+                    logger.debug(
+                        "Length of headers is %d, residue is %d bytes",
+                        self._rx_env_length,
+                        len(residue),
+                    )
         if self._rx_state is RXState.HEADERS:
             logger.debug("In RX_HEADERS")
             if self._rx_buffer_length > self._rx_env_length:
@@ -556,75 +567,58 @@ class SCGIConnection:
                 self._rx_buffer_length = 0
                 # Check that the comma is a comma.
                 if comma != ord(","):
-                    self._report_remote_error("Invalid end-of-environment character")
+                    raise RemoteProtocolError("Invalid end-of-environment character")
                 # Check that the last byte of the environment block is a NUL
-                elif environment[-1] != 0x00:
-                    self._report_remote_error("Environment block not NUL-terminated")
-                else:
-                    # Split the environment block into NUL-terminated chunks.
-                    split_environment = environment[:-1].split(b"\x00")
-                    # Check that there are an even number of parts.
-                    if len(split_environment) % 2 == 1:
-                        self._report_remote_error(
-                            "Environment block missing final value"
+                if environment[-1] != 0x00:
+                    raise RemoteProtocolError("Environment block not NUL-terminated")
+                # Split the environment block into NUL-terminated chunks.
+                split_environment = environment[:-1].split(b"\x00")
+                # Check that there are an even number of parts.
+                if len(split_environment) % 2 == 1:
+                    raise RemoteProtocolError("Environment block missing final value")
+                # Build the dictionary.
+                env_dict: dict[str, bytes] = {}
+                for i in range(0, len(split_environment), 2):
+                    try:
+                        key = split_environment[i].decode("ISO-8859-1")
+                    except UnicodeError as exp:
+                        raise RemoteProtocolError(
+                            "Environment variable name is not ISO-8859-1"
+                        ) from exp
+                    if not key:
+                        raise RemoteProtocolError(
+                            "Environment variable with empty name"
                         )
-                    else:
-                        # Build the dictionary.
-                        env_dict: dict[str, bytes] = {}
-                        for i in range(0, len(split_environment), 2):
-                            try:
-                                key = split_environment[i].decode("ISO-8859-1")
-                            except UnicodeError:
-                                self._report_remote_error(
-                                    "Environment variable name is not ISO-8859-1"
-                                )
-                                break
-                            if not key:
-                                self._report_remote_error(
-                                    "Environment variable with empty name"
-                                )
-                                break
-                            if key in env_dict:
-                                self._report_remote_error(
-                                    f"Duplicate environment variable {key}"
-                                )
-                                break
-                            env_dict[key] = split_environment[i + 1]
-                        # https://github.com/python/mypy/issues/9005
-                        if self._rx_state is not RXState.ERROR:  # type: ignore[comparison-overlap]
-                            # Check for mandatory environment variables.
-                            if env_dict.get("SCGI", None) != b"1":
-                                self._report_remote_error(
-                                    "Mandatory variable SCGI not set to 1"
-                                )
-                            else:
-                                # Advance the state machine, keeping any residual bytes.
-                                self._rx_state = RXState.BODY
-                                if residue:
-                                    self._rx_buffer.append(residue)
-                                    self._rx_buffer_length += len(residue)
-                                content_length = env_dict.get("CONTENT_LENGTH", b"")
-                                try:
-                                    self._rx_body_remaining = int(content_length)
-                                except ValueError:
-                                    self._report_remote_error(
-                                        "CONTENT_LENGTH missing or not a whole number"
-                                    )
-                                else:
-                                    if self._rx_body_remaining < 0:
-                                        self._report_remote_error(
-                                            "CONTENT_LENGTH missing or not a whole "
-                                            "number"
-                                        )
-                                    else:
-                                        self._event_queue.append(
-                                            RequestHeaders(env_dict)
-                                        )
-                                        logger.debug(
-                                            "Retrieved %d headers, residue is %d bytes",
-                                            len(env_dict),
-                                            len(residue),
-                                        )
+                    if key in env_dict:
+                        raise RemoteProtocolError(
+                            f"Duplicate environment variable {key}"
+                        )
+                    env_dict[key] = split_environment[i + 1]
+                # Check for mandatory environment variables.
+                if env_dict.get("SCGI", None) != b"1":
+                    raise RemoteProtocolError("Mandatory variable SCGI not set to 1")
+                # Advance the state machine, keeping any residual bytes.
+                self._rx_state = RXState.BODY
+                if residue:
+                    self._rx_buffer.append(residue)
+                    self._rx_buffer_length += len(residue)
+                content_length = env_dict.get("CONTENT_LENGTH", b"")
+                try:
+                    self._rx_body_remaining = int(content_length)
+                except ValueError as exp:
+                    raise RemoteProtocolError(
+                        "CONTENT_LENGTH missing or not a whole number"
+                    ) from exp
+                if self._rx_body_remaining < 0:
+                    raise RemoteProtocolError(
+                        "CONTENT_LENGTH missing or not a whole number"
+                    )
+                self._event_queue.append(RequestHeaders(env_dict))
+                logger.debug(
+                    "Retrieved %d headers, residue is %d bytes",
+                    len(env_dict),
+                    len(residue),
+                )
         if self._rx_state is RXState.BODY:
             logger.debug(
                 "In RX_BODY, buffer length = %d, body remaining = %d",
@@ -641,19 +635,19 @@ class SCGIConnection:
                     self._event_queue.append(RequestEnd())
                     self._rx_state = RXState.DONE
             else:
-                self._report_remote_error("Request body longer than CONTENT_LENGTH")
+                raise RemoteProtocolError("Request body longer than CONTENT_LENGTH")
         if self._rx_state is RXState.DONE:
             logger.debug("In RX_DONE")
             if self._rx_buffer_length:
-                self._report_remote_error("Request body longer than CONTENT_LENGTH")
+                raise RemoteProtocolError("Request body longer than CONTENT_LENGTH")
         if self._rx_buffer_length > self._rx_buffer_limit:
-            self._report_remote_error("Too many bytes buffered")
-        elif self._rx_eof and self._rx_state in {
+            raise RemoteProtocolError("Too many bytes buffered")
+        if self._rx_eof and self._rx_state in {
             RXState.HEADER_LENGTH,
             RXState.HEADERS,
             RXState.BODY,
         }:
-            self._report_remote_error("Premature EOF")
+            raise RemoteProtocolError("Premature EOF")
 
     def _report_local_error(self: SCGIConnection, msg: str) -> LocalProtocolError:
         """
@@ -664,17 +658,6 @@ class SCGIConnection:
         """
         self._report_error(LocalProtocolError, msg)
         return LocalProtocolError(msg)
-
-    def _report_remote_error(self: SCGIConnection, msg: str) -> None:
-        """
-        Record a remote protocol error.
-
-        The error is not raised because remote protocol errors are detected during calls
-        to receive_data but should be reported during calls to next_event.
-
-        :param msg: The error message.
-        """
-        self._report_error(RemoteProtocolError, msg)
 
     def _report_error(
         self: SCGIConnection, error_class: type[ProtocolError], msg: str
