@@ -64,7 +64,9 @@ class Event:
 class RequestHeaders(Event):
     """Reports that a request has started and carries the environment data."""
 
-    __slots__ = ("environment",)
+    __slots__ = {
+        "environment": """The environment variables, as a dict from name to value""",
+    }
 
     environment: dict[str, bytes]
 
@@ -75,7 +77,6 @@ class RequestHeaders(Event):
         :param environment: The environment variables, as a dict from name to value.
         """
         self.environment = environment
-        """The environment variables, as a dict from name to value"""
 
     def __repr__(self: RequestHeaders) -> str:
         """Return a representation of the environment."""
@@ -93,7 +94,9 @@ class RequestBody(Event):
     never generates RequestBody events.
     """
 
-    __slots__ = ("data",)
+    __slots__ = {
+        "data": """The body data chunk.""",
+    }
 
     data: bytes
 
@@ -104,7 +107,6 @@ class RequestBody(Event):
         :param data: The body data chunk.
         """
         self.data = data
-        """The body data chunk"""
 
     def __repr__(self: RequestBody) -> str:
         """Return a representation of the body data."""
@@ -136,7 +138,12 @@ class ResponseHeaders(Event):
     followed by a ResponseEnd.
     """
 
-    __slots__ = ("status", "content_type", "location", "other_headers")
+    __slots__ = {
+        "status": """The HTTP status code and string.""",
+        "content_type": """The value of the Content-Type header.""",
+        "location": """The value of the Location header.""",
+        "other_headers": """The HTTP headers, except Content-Type and Location.""",
+    }
 
     status: str | None
     content_type: str | None
@@ -268,7 +275,9 @@ class ResponseHeaders(Event):
 class ResponseBody(Event):
     """Sends a chunk of response body to the SCGI client."""
 
-    __slots__ = ("data",)
+    __slots__ = {
+        "data": """The body data chunk.""",
+    }
 
     data: bytes
 
@@ -307,19 +316,54 @@ class SCGIConnection:
     translates between chunks of bytes and sequences of protocol events.
     """
 
-    __slots__ = (
-        "_rx_state",
-        "_tx_state",
-        "_error_class",
-        "_error_msg",
-        "_event_queue",
-        "_rx_buffer",
-        "_rx_buffer_length",
-        "_rx_buffer_limit",
-        "_rx_eof",
-        "_rx_env_length",
-        "_rx_body_remaining",
-    )
+    __slots__ = {
+        "_rx_state": """
+            The state of the receive half.
+
+            This is the effective state after consuming all events in _event_queue but
+            before considering any bytes in _rx_buffer.
+            """,
+        "_tx_state": """The state of the transmit half.""",
+        "_error_class": """
+            The type of the error that was detected.
+
+            The error may or may not have been raised yet. In either case, it will be
+            raised on the next call to next_event or send.
+            """,
+        "_error_msg": """The textual message for the detected error.""",
+        "_event_queue": """
+            The decoded but not yet returned events.
+
+            These are events that have been received (via receive_data) but not yet
+            returned by next_event.
+            """,
+        "_rx_buffer": """
+            The received but not yet decoded bytes.
+
+            These are bytes that have been received (via receive_data) but not yet
+            converted into events and pushed to _event_queue. In between calls to
+            receive_data, this is only the bytes making up a partial event (i.e. one for
+            which some, but not all, of the bytes have been received yet). During a call
+            to receive_data, it sometimes temporarily contains bytes making up one or
+            more complete events, plus possible extra residue at the end, until the
+            completed events are parsed and removed.
+            """,
+        "_rx_buffer_length": """The total number of bytes in _rx_buffer.""",
+        "_rx_buffer_limit": """
+            The maximum size of _rx_buffer in between calls to receive_bytes.
+
+            During a call to receive_bytes, the buffer may exceed this length, but only
+            temporarily until complete events are removed. Incomplete events must always
+            be within this limit.
+            """,
+        "_rx_eof": """Whether an EOF has been reported via call to receive_bytes.""",
+        "_rx_env_length": """The length of the headers block, once known.""",
+        "_rx_body_remaining": """
+            The amount of request body not yet converted into events in _event_queue.
+
+            This includes both bytes in _rx_buffer and bytes not yet received.
+            """,
+    }
 
     _rx_state: RXState
     _tx_state: TXState
