@@ -508,6 +508,11 @@ class SCGIConnection:
             if self._rx_buffer:
                 # The length-of-environment integer ends with a colon.
                 index = self._rx_buffer[-1].find(b":")
+                if index < 0 and self._rx_buffer_length > 15:
+                    # If the length prefix is more than 15 characters long, then the
+                    # netstring itself is almost a TiB long or more, which is
+                    # unreasonable.
+                    raise RemoteProtocolError("Invalid netstring length prefix")
                 if index >= 0:
                     logger.debug("Found : at %d", index)
                     # We have the full length-of-environment integer and its terminating
