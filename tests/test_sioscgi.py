@@ -331,7 +331,7 @@ class TestBadRXData(unittest.TestCase):
             b"REQUEST_URI\x00/deepthought\x00"
             b","
             b"What is the answer to life?"
-        )  # Comma replaced with @
+        )
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
