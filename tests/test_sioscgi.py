@@ -292,15 +292,7 @@ class TestBadRXData(unittest.TestCase):
     def test_premature_eof(self: TestBadRXData) -> None:
         """Test rejection of truncated received data."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(
-            b"70:"
-            b"CONTENT_LENGTH\x0027\x00"
-            b"SCGI\x001\x00"
-            b"REQUEST_METHOD\x00POST\x00"
-            b"REQUEST_URI\x00/deepthought\x00"
-            b","
-            b"What is the answer to life"
-        )  # Note missing final ?
+        uut.receive_data(TestGood.RX_DATA[:-1])
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
@@ -430,15 +422,7 @@ class TestBadResponseSequence(unittest.TestCase):
     def test_response_body_before_headers(self: TestBadResponseSequence) -> None:
         """Test trying to send some response body before sending the headers."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(
-            b"70:"
-            b"CONTENT_LENGTH\x0027\x00"
-            b"SCGI\x001\x00"
-            b"REQUEST_METHOD\x00POST\x00"
-            b"REQUEST_URI\x00/deepthought\x00"
-            b","
-            b"What is the answer to life?"
-        )
+        uut.receive_data(TestGood.RX_DATA)
         while uut.next_event() is not None:
             pass
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
@@ -449,15 +433,7 @@ class TestBadResponseSequence(unittest.TestCase):
     def test_response_end_before_headers(self: TestBadResponseSequence) -> None:
         """Test trying to send the response end marker before sending the headers."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(
-            b"70:"
-            b"CONTENT_LENGTH\x0027\x00"
-            b"SCGI\x001\x00"
-            b"REQUEST_METHOD\x00POST\x00"
-            b"REQUEST_URI\x00/deepthought\x00"
-            b","
-            b"What is the answer to life?"
-        )
+        uut.receive_data(TestGood.RX_DATA)
         while uut.next_event() is not None:
             pass
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
@@ -471,15 +447,7 @@ class TestOtherErrors(unittest.TestCase):
     def test_rx_after_eof(self: TestOtherErrors) -> None:
         """Test that receiving additional data after EOF raises an exception."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(
-            b"70:"
-            b"CONTENT_LENGTH\x0027\x00"
-            b"SCGI\x001\x00"
-            b"REQUEST_METHOD\x00POST\x00"
-            b"REQUEST_URI\x00/deepthought\x00"
-            b","
-            b"What is the answer to life?"
-        )
+        uut.receive_data(TestGood.RX_DATA)
         uut.receive_data(b"")
         while uut.next_event() is not None:
             pass
