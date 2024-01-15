@@ -551,7 +551,7 @@ class SCGIConnection:
                 self._rx_buffer.clear()
                 self._rx_buffer_length = 0
                 # Check that the comma is a comma.
-                if comma != 0x2C:
+                if comma != ord(","):
                     self._report_remote_error("Invalid end-of-environment character")
                 # Check that the last byte of the environment block is a NUL
                 elif environment[-1] != 0x00:
