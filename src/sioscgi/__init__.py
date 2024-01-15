@@ -208,7 +208,10 @@ class ResponseHeaders(Event):
 
     def __repr__(self: ResponseHeaders) -> str:
         """Return a representation of the response headers."""
-        return f"ResponseHeaders(status={self.status}, content_type={self.content_type}, location={self.location}, other_headers={self.other_headers!r})"
+        return (
+            f"ResponseHeaders(status={self.status}, content_type={self.content_type}, "
+            f"location={self.location}, other_headers={self.other_headers!r})"
+        )
 
     def _sanity_check(self: ResponseHeaders) -> None:
         """
@@ -519,7 +522,8 @@ class SCGIConnection:
                             self._report_remote_error("Invalid length-of-environment")
                         elif self._rx_env_length > self._rx_buffer_limit:
                             self._report_remote_error(
-                                f"Headers too long (got {self._rx_env_length}, limit {self._rx_buffer_limit})"
+                                f"Headers too long (got {self._rx_env_length}, "
+                                f"limit {self._rx_buffer_limit})"
                             )
                         else:
                             # Advance the state machine, keeping any residual bytes.

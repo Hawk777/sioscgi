@@ -11,9 +11,15 @@ import sioscgi
 class TestGood(unittest.TestCase):
     """Test the normal cases where things work properly."""
 
-    RX_DATA: ClassVar[
-        bytes
-    ] = b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+    RX_DATA: ClassVar[bytes] = (
+        b"70:"
+        b"CONTENT_LENGTH\x0027\x00"
+        b"SCGI\x001\x00"
+        b"REQUEST_METHOD\x00POST\x00"
+        b"REQUEST_URI\x00/deepthought\x00"
+        b","
+        b"What is the answer to life?"
+    )
     """The raw received bytes."""
 
     RX_HEADERS: ClassVar[dict[str, bytes]] = {
@@ -35,7 +41,13 @@ class TestGood(unittest.TestCase):
             "200 OK",
             [("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "2")],
             b"42",
-            b"Content-Type: text/plain; charset=UTF-8\r\nStatus: 200 OK\r\nContent-Length: 2\r\n\r\n42",
+            (
+                b"Content-Type: text/plain; charset=UTF-8\r\n"
+                b"Status: 200 OK\r\n"
+                b"Content-Length: 2\r\n"
+                b"\r\n"
+                b"42"
+            ),
         ),
         (
             "Local redirect",
@@ -53,7 +65,14 @@ class TestGood(unittest.TestCase):
                 ("Location", "/foo"),
             ],
             b"moved",
-            b"Location: /foo\r\nStatus: 301 Moved Permanently\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Length: 5\r\n\r\nmoved",
+            (
+                b"Location: /foo\r\n"
+                b"Status: 301 Moved Permanently\r\n"
+                b"Content-Type: text/plain; charset=UTF-8\r\n"
+                b"Content-Length: 5\r\n"
+                b"\r\n"
+                b"moved"
+            ),
         ),
     ]
     """
@@ -274,7 +293,13 @@ class TestBadRXData(unittest.TestCase):
         """Test rejection of truncated received data."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life"
         )  # Note missing final ?
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -284,7 +309,13 @@ class TestBadRXData(unittest.TestCase):
         """Test rejection of a netstring encoding missing its trailing comma."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00@What is the answer to life?"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b"@"
+            b"What is the answer to life?"
         )  # Comma replaced with @
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -294,7 +325,12 @@ class TestBadRXData(unittest.TestCase):
         """Test rejection of a missing SCGI header."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"63:CONTENT_LENGTH\x0027\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"63:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )  # Comma replaced with @
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -304,7 +340,12 @@ class TestBadRXData(unittest.TestCase):
         """Test rejection of a missing CONTENT_LENGTH header."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"52:SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00@What is the answer to life?"
+            b"52:"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b"@"
+            b"What is the answer to life?"
         )  # Comma replaced with @
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -314,7 +355,13 @@ class TestBadRXData(unittest.TestCase):
         """Test rejection of a non-NUL-terminated header block."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"69:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought,What is the answer to life?"
+            b"69:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought"
+            b","
+            b"What is the answer to life?"
         )
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -328,7 +375,13 @@ class TestBadRXData(unittest.TestCase):
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"65:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"65:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -342,7 +395,13 @@ class TestBadRXData(unittest.TestCase):
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x002\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x002\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
@@ -372,7 +431,13 @@ class TestBadResponseSequence(unittest.TestCase):
         """Test trying to send some response body before sending the headers."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )
         while uut.next_event() is not None:
             pass
@@ -385,7 +450,13 @@ class TestBadResponseSequence(unittest.TestCase):
         """Test trying to send the response end marker before sending the headers."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )
         while uut.next_event() is not None:
             pass
@@ -401,7 +472,13 @@ class TestOtherErrors(unittest.TestCase):
         """Test that receiving additional data after EOF raises an exception."""
         uut = sioscgi.SCGIConnection()
         uut.receive_data(
-            b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+            b"70:"
+            b"CONTENT_LENGTH\x0027\x00"
+            b"SCGI\x001\x00"
+            b"REQUEST_METHOD\x00POST\x00"
+            b"REQUEST_URI\x00/deepthought\x00"
+            b","
+            b"What is the answer to life?"
         )
         uut.receive_data(b"")
         while uut.next_event() is not None:
