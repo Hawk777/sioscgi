@@ -603,22 +603,28 @@ class SCGIConnection:
                                 if residue:
                                     self._rx_buffer.append(residue)
                                     self._rx_buffer_length += len(residue)
+                                content_length = env_dict.get("CONTENT_LENGTH", b"")
                                 try:
-                                    self._rx_body_remaining = int(
-                                        env_dict.get("CONTENT_LENGTH", b"")
-                                    )
-                                    if self._rx_body_remaining < 0:
-                                        raise ValueError
-                                    self._event_queue.append(RequestHeaders(env_dict))
-                                    logger.debug(
-                                        "Retrieved %d headers, residue is %d bytes",
-                                        len(env_dict),
-                                        len(residue),
-                                    )
+                                    self._rx_body_remaining = int(content_length)
                                 except ValueError:
                                     self._report_remote_error(
                                         "CONTENT_LENGTH missing or not a whole number"
                                     )
+                                else:
+                                    if self._rx_body_remaining < 0:
+                                        self._report_remote_error(
+                                            "CONTENT_LENGTH missing or not a whole "
+                                            "number"
+                                        )
+                                    else:
+                                        self._event_queue.append(
+                                            RequestHeaders(env_dict)
+                                        )
+                                        logger.debug(
+                                            "Retrieved %d headers, residue is %d bytes",
+                                            len(env_dict),
+                                            len(residue),
+                                        )
         if self._rx_state is RXState.BODY:
             logger.debug(
                 "In RX_BODY, buffer length = %d, body remaining = %d",
