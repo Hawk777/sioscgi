@@ -39,16 +39,16 @@ class TestGood(unittest.TestCase):
     """
     The responses to generate.
 
-    Each element is a tuple of (name of subtest, response status, response
-    headers, response body, expected transmitted data).
+    Each element is a tuple of (name of subtest, response status, response headers,
+    response body, expected transmitted data).
     """
 
     def test_big_buffer(self) -> None:
         """
         Test the normal cases with a big buffer.
 
-        The incoming raw data is delivered in one full chunk, and the response
-        body is generated the same way.
+        The incoming raw data is delivered in one full chunk, and the response body is
+        generated the same way.
         """
         for (case_name, response_status, response_headers, response_body, expected_tx) in self.RESPONSES:
             with self.subTest(name=case_name):
@@ -81,8 +81,8 @@ class TestGood(unittest.TestCase):
         """
         Test the normal cases with a tiny buffer.
 
-        The incoming raw data is delivered a byte at a time, and the response
-        body is generated the same way.
+        The incoming raw data is delivered a byte at a time, and the response body is
+        generated the same way.
         """
         for (case_name, response_status, response_headers, response_body, expected_tx) in self.RESPONSES:
             with self.subTest(name=case_name):
@@ -116,15 +116,13 @@ class TestGood(unittest.TestCase):
 
     def test_request_response_interleaving(self) -> None:
         """
-        Test that response data can be shipped out before the request body is
-        finished.
+        Test that response data can be shipped out before the request body is finished.
 
-        This is not strictly permitted by the SCGI specification (“When the
-        SCGI server sees the end of the request it sends back a response and
-        closes the connection.”) but it is permitted by the CGI specification
-        (“However, it is not obliged to read any of the data.”), works fine
-        with a number of SCGI clients, and is useful to be able to do if
-        supported by the environment.
+        This is not strictly permitted by the SCGI specification (“When the SCGI server
+        sees the end of the request it sends back a response and closes the
+        connection.”) but it is permitted by the CGI specification (“However, it is not
+        obliged to read any of the data.”), works fine with a number of SCGI clients,
+        and is useful to be able to do if supported by the environment.
         """
         _, response_status, response_headers, response_body, response_expected = self.RESPONSES[0]
         assert response_body is not None
@@ -165,8 +163,8 @@ class TestGood(unittest.TestCase):
 
 class TestBadResponseHeaders(unittest.TestCase):
     """
-    Check that various occurrences of invalid response header structures are
-    caught and rejected.
+    Check that various occurrences of invalid response header structures are caught and
+    rejected.
     """
 
     def test_non_latin1_content_type(self) -> None:
@@ -179,8 +177,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_non_latin1_location(self) -> None:
         """
-        Test that a Location header with a non-ISO8859-1-encodable value is
-        rejected.
+        Test that a Location header with a non-ISO8859-1-encodable value is rejected.
         """
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders("301 Moved Permanently", [("Location", "/Ω"), ("Content-Type", "text/plain; charset=UTF-8"), ("Content-Length", "0")])
@@ -195,17 +192,16 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_local_redirect_with_content_type(self) -> None:
         """
-        Test that a local redirect with a Content-Type header is rejected (a
-        local redirect must not have any headers other than Location).
+        Test that a local redirect with a Content-Type header is rejected (a local
+        redirect must not have any headers other than Location).
         """
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(None, [("Location", "/foo"), ("Content-Type", "text/plain; charset=UTF-8")])
 
     def test_local_redirect_with_other_header(self) -> None:
         """
-        Test that a local redirect with an additional header other than
-        Content-Type is rejected (a local redirect must not have any headers
-        other than Location).
+        Test that a local redirect with an additional header other than Content-Type is
+        rejected (a local redirect must not have any headers other than Location).
         """
         with self.assertRaises(sioscgi.LocalProtocolError):
             sioscgi.ResponseHeaders(None, [("Location", "/foo"), ("Other-Thing", "bar")])
@@ -228,8 +224,8 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_no_comma(self) -> None:
         """
-        Test that an exception is raised if the received headers are not
-        properly netstring-terminated with a comma.
+        Test that an exception is raised if the received headers are not properly
+        netstring-terminated with a comma.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00@What is the answer to life?")  # Comma replaced with @
@@ -259,8 +255,7 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_no_nul(self) -> None:
         """
-        Test that an exception is raised if the header block does not end with
-        a NUL.
+        Test that an exception is raised if the header block does not end with a NUL.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"69:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought,What is the answer to life?")
@@ -270,9 +265,8 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_odd_number(self) -> None:
         """
-        Test that an exception is raised if the number of NUL-terminated
-        strings in the headers block is odd, implying a key without a value or
-        a value without a key.
+        Test that an exception is raised if the number of NUL-terminated strings in the
+        headers block is odd, implying a key without a value or a value without a key.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"65:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
@@ -282,8 +276,8 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_wrong_scgi(self) -> None:
         """
-        Test that an exception is raised if the SCGI header has the wrong
-        value, implying a different protocol version is in use.
+        Test that an exception is raised if the SCGI header has the wrong value,
+        implying a different protocol version is in use.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x002\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
@@ -293,8 +287,8 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_length_space(self) -> None:
         """
-        Test that a space starting the netstring length for the headers block
-        is rejected.
+        Test that a space starting the netstring length for the headers block is
+        rejected.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B" ")
@@ -304,8 +298,8 @@ class TestBadRXData(unittest.TestCase):
 
     def test_headers_length_non_integer(self) -> None:
         """
-        Test that a non-integer starting the netstring length for the headers
-        block is rejected.
+        Test that a non-integer starting the netstring length for the headers block is
+        rejected.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"A")
@@ -316,14 +310,13 @@ class TestBadRXData(unittest.TestCase):
 
 class TestBadResponseSequence(unittest.TestCase):
     """
-    Test various cases of trying to send response events at the wrong time or
-    in the wrong order.
+    Test various cases of trying to send response events at the wrong time or in the
+    wrong order.
     """
 
     def test_response_body_before_headers(self) -> None:
         """
-        Test trying to send some response body before sending the response
-        headers.
+        Test trying to send some response body before sending the response headers.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
@@ -336,8 +329,7 @@ class TestBadResponseSequence(unittest.TestCase):
 
     def test_response_end_before_headers(self) -> None:
         """
-        Test trying to send the response end marker before sending the response
-        headers.
+        Test trying to send the response end marker before sending the response headers.
         """
         uut = sioscgi.SCGIConnection()
         uut.receive_data(B"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?")
@@ -362,12 +354,10 @@ class TestOtherErrors(unittest.TestCase):
         uut.receive_data(B"")
         while uut.next_event() is not None:
             pass
-        # This is considered a local error, not a remote error, because
-        # receiving bytes after EOF isn’t something that the remote
-        # peer is *capable* of causing if the local software is written
-        # properly (once the remote peer sends EOF, the kernel should
-        # prevent it from being able to send any more data, so if this
-        # happens, it means the local software detected EOF
-        # improperly).
+        # This is considered a local error, not a remote error, because receiving bytes
+        # after EOF isn’t something that the remote peer is *capable* of causing if the
+        # local software is written properly (once the remote peer sends EOF, the kernel
+        # should prevent it from being able to send any more data, so if this happens,
+        # it means the local software detected EOF improperly).
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.receive_data(B"x")

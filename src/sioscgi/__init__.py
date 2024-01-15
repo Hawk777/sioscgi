@@ -36,8 +36,8 @@ class TXState(enum.Enum):
 
 class ProtocolError(Exception):
     """
-    Raised when a violation of protocol occurs, by either the remote peer or
-    the local application.
+    Raised when a violation of protocol occurs, by either the remote peer or the local
+    application.
 
     This is the base class of LocalProtocolError and RemoteProtocolError.
     """
@@ -77,8 +77,7 @@ class RequestHeaders(Event):
         """
         Construct a new RequestHeaders.
 
-        :param environment: The environment variables, as a dict from name to
-            value.
+        :param environment: The environment variables, as a dict from name to value.
         """
         self.environment = environment
         """The environment variables, as a dict from name to value"""
@@ -91,11 +90,11 @@ class RequestBody(Event):
     """
     Transports some request body data.
 
-    In between a RequestHeaders and a RequestEnd, zero or more RequestBody
-    events are delivered, each carrying a chunk of the request body.
+    In between a RequestHeaders and a RequestEnd, zero or more RequestBody events are
+    delivered, each carrying a chunk of the request body.
 
-    No RequestBody event carries an empty chunk; consequently, a request
-    without a body never generates RequestBody events.
+    No RequestBody event carries an empty chunk; consequently, a request without a body
+    never generates RequestBody events.
     """
     __slots__ = ("data",)
 
@@ -116,11 +115,10 @@ class RequestBody(Event):
 
 class RequestEnd(Event):
     """
-    Reports that a request has finished and both headers and all body data have
-    been delivered in preceding events.
+    Reports that a request has finished and both headers and all body data have been
+    delivered in preceding events.
 
-    Once this event has been delivered, the application can start sending the
-    response.
+    Once this event has been delivered, the application can start sending the response.
     """
     __slots__ = ()
 
@@ -132,9 +130,9 @@ class ResponseHeaders(Event):
     """
     Sends the headers of a response to the SCGI client.
 
-    This event must be sent after RequestEnd is received. After sending
-    ResponseHeaders, if appropriate to the response, one or more ResponseBody
-    events should be sent, followed by a ResponseEnd.
+    This event must be sent after RequestEnd is received. After sending ResponseHeaders,
+    if appropriate to the response, one or more ResponseBody events should be sent,
+    followed by a ResponseEnd.
     """
     __slots__ = ("status", "content_type", "location", "other_headers")
 
@@ -147,9 +145,8 @@ class ResponseHeaders(Event):
         """
         Construct a ResponseHeaders.
 
-        :param status: The HTTP status code and string (e.g. “200 OK”), or None
-            if a local redirect or client redirect without document is being
-            generated.
+        :param status: The HTTP status code and string (e.g. “200 OK”), or None if a
+            local redirect or client redirect without document is being generated.
         :param headers: A list of (name, value) tuples of HTTP headers.
         """
         self.status = status
@@ -165,25 +162,24 @@ class ResponseHeaders(Event):
         Convert this event into its encoding as raw bytes.
         """
         if self.status is None:
-            # This is a local redirect or client redirect without document,
-            # which should be served as a Location header and nothing else.
+            # This is a local redirect or client redirect without document, which should
+            # be served as a Location header and nothing else.
             assert self.location is not None  # Checked in sanity checks if status is None
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\n\r\n"
         elif self.location is not None:
-            # This is a client redirect with document, which should be served
-            # as Location, then Status, then Content-Type (if present), then
-            # everything else.
+            # This is a client redirect with document, which should be served as
+            # Location, then Status, then Content-Type (if present), then everything
+            # else.
             return B"Location: " + self.location.encode("ISO-8859-1") + B"\r\nStatus: " + self.status.encode("ISO-8859-1") + B"\r\n" + self._content_type_encoded + bytes(self.other_headers)
         else:
-            # This is a document response, which should be served as
-            # Content-Type (if present), then Status, then everything else.
+            # This is a document response, which should be served as Content-Type (if
+            # present), then Status, then everything else.
             return self._content_type_encoded + B"Status: " + self.status.encode("ISO-8859-1") + B"\r\n" + bytes(self.other_headers)
 
     @property
     def succeeding_state(self) -> TXState:
         """
-        Return the state the state machine should be in after sending these
-        headers.
+        Return the state the state machine should be in after sending these headers.
         """
         if self.status is not None:
             return TXState.BODY
@@ -217,8 +213,7 @@ class ResponseHeaders(Event):
 
     def _sanity_check_without_document(self) -> None:
         """Perform sanity checks specific to responses without bodies."""
-        # A response without a document must contain a Location header and
-        # nothing else.
+        # A response without a document must contain a Location header and nothing else.
         if self.location is None:
             raise LocalProtocolError("Header Location is mandatory for non-document response")
         if self.content_type is not None or self.other_headers:
@@ -229,8 +224,8 @@ class ResponseHeaders(Event):
         """
         Return the encoded form of the Content-Type header.
 
-        If the header is present, this is its name and value encoded to bytes
-        plus a terminating CRLF. If not, this is the empty bytes.
+        If the header is present, this is its name and value encoded to bytes plus a
+        terminating CRLF. If not, this is the empty bytes.
         """
         if self.content_type is not None:
             return B"Content-Type: " + self.content_type.encode("ISO-8859-1") + B"\r\n"
@@ -274,8 +269,8 @@ class SCGIConnection:
     """
     An SCGI connection.
 
-    This class implements the SCGI protocol as a sans-I/O state machine, which
-    simply translates between chunks of bytes and sequences of protocol events.
+    This class implements the SCGI protocol as a sans-I/O state machine, which simply
+    translates between chunks of bytes and sequences of protocol events.
     """
 
     __slots__ = (
@@ -308,9 +303,9 @@ class SCGIConnection:
         """
         Construct a new SCGIConnection.
 
-        :param rx_buffer_limit: The maximum number of received bytes that can
-            be buffered locally before being turned into an event; this value
-            bounds the size of request environment.
+        :param rx_buffer_limit: The maximum number of received bytes that can be
+            buffered locally before being turned into an event; this value bounds the
+            size of request environment.
         """
         super().__init__()
         self._rx_state = RXState.HEADER_LENGTH
@@ -330,9 +325,9 @@ class SCGIConnection:
         """
         The state the receive half of the connection is currently in.
 
-        Events and state transitions are generated on receipt of data, not on
-        call to next_event, so this value reflects the state of the connection
-        as it will be after all events have been consumed.
+        Events and state transitions are generated on receipt of data, not on call to
+        next_event, so this value reflects the state of the connection as it will be
+        after all events have been consumed.
         """
         return self._rx_state
 
@@ -347,12 +342,12 @@ class SCGIConnection:
         """
         Provide data received over the network to the SCGI connection.
 
-        :param data: The received bytes, or a zero-length bytes object if the
-            remote peer closed its end of the connection.
+        :param data: The received bytes, or a zero-length bytes object if the remote
+            peer closed its end of the connection.
 
-        This method raises LocalProtocolError if a nonzero-length data is
-        passed in after a zero-length data has previously been passed. It does
-        not raise exceptions for any other reason.
+        This method raises LocalProtocolError if a nonzero-length data is passed in
+        after a zero-length data has previously been passed. It does not raise
+        exceptions for any other reason.
         """
         if data:
             if self._rx_eof:
@@ -371,14 +366,14 @@ class SCGIConnection:
         """
         Return the next event in the event queue.
 
-        This method should generally be called repeatedly until it returns None
-        after a call to receive_data. However, it is legal to leave some events
-        unprocessed until a more convenient time, or even call receive_data
-        again before receiving all the events.
+        This method should generally be called repeatedly until it returns None after a
+        call to receive_data. However, it is legal to leave some events unprocessed
+        until a more convenient time, or even call receive_data again before receiving
+        all the events.
 
-        This method raises RemoteProtocolError in the event of a remote
-        protocol error, or LocalProtocolError in the event that the same
-        exception was previously raised by some other method.
+        This method raises RemoteProtocolError in the event of a remote protocol error,
+        or LocalProtocolError in the event that the same exception was previously raised
+        by some other method.
         """
         if self._rx_state is RXState.ERROR:
             assert self._error_class is not None  # Implied by RXState.ERROR
@@ -395,8 +390,7 @@ class SCGIConnection:
 
         :param event: The event to send.
 
-        This method raises LocalProtocolError if event is not acceptable right
-        now.
+        This method raises LocalProtocolError if event is not acceptable right now.
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
         if self._tx_state is TXState.ERROR:
@@ -419,13 +413,12 @@ class SCGIConnection:
 
     def _parse_events(self) -> None:
         """
-        Remove bytes from the receive buffer and turn them into events in the
-        event queue.
+        Remove bytes from the receive buffer and turn them into events in the event
+        queue.
         """
-        # Throughout this method, we assume that at most one element has been
-        # added to the receive buffer; this is safe because this method is
-        # called from receive_data, so we eagerly parse as much as we can on
-        # every received chunk.
+        # Throughout this method, we assume that at most one element has been added to
+        # the receive buffer; this is safe because this method is called from
+        # receive_data, so we eagerly parse as much as we can on every received chunk.
         logger = logging.getLogger(__name__)
         if self._rx_state is RXState.HEADER_LENGTH:
             logger.debug("In RX_HEADER_LENGTH")
@@ -434,10 +427,10 @@ class SCGIConnection:
                 index = self._rx_buffer[-1].find(B":")
                 if index >= 0:
                     logger.debug("Found : at %d", index)
-                    # We have the full length-of-environment integer and its
-                    # terminating colon. Split up received data into the
-                    # length-of-environment integer, the colon (which we
-                    # discard), and any bytes following the colon (residue).
+                    # We have the full length-of-environment integer and its terminating
+                    # colon. Split up received data into the length-of-environment
+                    # integer, the colon (which we discard), and any bytes following the
+                    # colon (residue).
                     residue = self._rx_buffer[-1][index + 1:]
                     if index == 0:
                         self._rx_buffer.pop()
@@ -458,8 +451,7 @@ class SCGIConnection:
                         elif self._rx_env_length > self._rx_buffer_limit:
                             self._report_remote_error(f"Headers too long (got {self._rx_env_length}, limit {self._rx_buffer_limit})")
                         else:
-                            # Advance the state machine, keeping any residual
-                            # bytes.
+                            # Advance the state machine, keeping any residual bytes.
                             self._rx_state = RXState.HEADERS
                             if residue:
                                 self._rx_buffer.append(residue)
@@ -468,9 +460,8 @@ class SCGIConnection:
         if self._rx_state is RXState.HEADERS:
             logger.debug("In RX_HEADERS")
             if self._rx_buffer_length > self._rx_env_length:
-                # Split the receive buffer into the environment of the
-                # designated length, the comma, and any bytes following the
-                # comma (residue).
+                # Split the receive buffer into the environment of the designated
+                # length, the comma, and any bytes following the comma (residue).
                 logger.debug("Got all headers")
                 last_chunk_start_pos = self._rx_buffer_length - len(self._rx_buffer[-1])
                 assert last_chunk_start_pos <= self._rx_env_length
@@ -518,8 +509,7 @@ class SCGIConnection:
                             if env_dict.get("SCGI", None) != B"1":
                                 self._report_remote_error("Mandatory variable SCGI not set to 1")
                             else:
-                                # Advance the state machine, keeping any residual
-                                # bytes.
+                                # Advance the state machine, keeping any residual bytes.
                                 self._rx_state = RXState.BODY
                                 if residue:
                                     self._rx_buffer.append(residue)
@@ -567,9 +557,8 @@ class SCGIConnection:
         """
         Record a remote protocol error.
 
-        The error is not raised because remote protocol errors are detected
-        during calls to receive_data but should be reported during calls to
-        next_event.
+        The error is not raised because remote protocol errors are detected during calls
+        to receive_data but should be reported during calls to next_event.
 
         :param msg: The error message.
         """
@@ -579,8 +568,8 @@ class SCGIConnection:
         """
         Record an error for later reporting.
 
-        :param error_class: The class of protocol error, either
-            LocalProtocolError or RemoteProtocolError.
+        :param error_class: The class of protocol error, either LocalProtocolError or
+            RemoteProtocolError.
         :param msg: The error message.
         """
         self._rx_state = RXState.ERROR
