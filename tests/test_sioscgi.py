@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import ClassVar
 
 import sioscgi
 
@@ -10,19 +11,25 @@ import sioscgi
 class TestGood(unittest.TestCase):
     """Test the normal cases where things work properly."""
 
-    RX_DATA = b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
+    RX_DATA: ClassVar[
+        bytes
+    ] = b"70:CONTENT_LENGTH\x0027\x00SCGI\x001\x00REQUEST_METHOD\x00POST\x00REQUEST_URI\x00/deepthought\x00,What is the answer to life?"
     """The raw received bytes."""
-    RX_HEADERS = {
+
+    RX_HEADERS: ClassVar[dict[str, bytes]] = {
         "CONTENT_LENGTH": b"27",
         "SCGI": b"1",
         "REQUEST_METHOD": b"POST",
         "REQUEST_URI": b"/deepthought",
     }
     """The expected decoded request headers."""
-    RX_BODY = b"What is the answer to life?"
+
+    RX_BODY: ClassVar[bytes] = b"What is the answer to life?"
     """The expected decoded request body."""
 
-    RESPONSES = [
+    RESPONSES: ClassVar[
+        list[tuple[str, str | None, list[tuple[str, str]], bytes | None, bytes]]
+    ] = [
         (
             "Standard response with document",
             "200 OK",
