@@ -32,11 +32,9 @@ ignore = [
 	"D212", # multi-line-summary-first-line
 	"EM101", # raw-string-in-exception
 	"EM102", # f-string-in-exception
-	"FBT001", # boolean-type-hint-positional-argument
 	"PLR09", # too-many-<foo>
 	"PT", # pytest-related stuff
 	"S101", # assert
-	"S110", # try-except-pass
 	"TRY003", # raise-vanilla-args
 ]
 select = ["ALL"]
