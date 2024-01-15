@@ -78,6 +78,7 @@ class RequestHeaders(Event):
         """The environment variables, as a dict from name to value"""
 
     def __repr__(self: RequestHeaders) -> str:
+        """Return a representation of the environment."""
         return f"RequestHeaders({self.environment})"
 
 
@@ -106,6 +107,7 @@ class RequestBody(Event):
         """The body data chunk"""
 
     def __repr__(self: RequestBody) -> str:
+        """Return a representation of the body data."""
         return f"RequestBody({self.data!r})"
 
 
@@ -121,6 +123,7 @@ class RequestEnd(Event):
     __slots__ = ()
 
     def __repr__(self: RequestEnd) -> str:
+        """Return a representation of the end marker."""
         return "RequestEnd()"
 
 
@@ -201,6 +204,7 @@ class ResponseHeaders(Event):
             return TXState.NO_BODY
 
     def __repr__(self: ResponseHeaders) -> str:
+        """Return a representation of the response headers."""
         return f"ResponseHeaders(status={self.status}, content_type={self.content_type}, location={self.location}, other_headers={self.other_headers!r})"
 
     def _sanity_check(self: ResponseHeaders) -> None:
@@ -277,6 +281,7 @@ class ResponseBody(Event):
         self.data = data
 
     def __repr__(self: ResponseBody) -> str:
+        """Return a representation of the body data."""
         return f"ResponseBody({self.data!r})"
 
 
@@ -290,6 +295,7 @@ class ResponseEnd(Event):
     __slots__ = ()
 
     def __repr__(self: ResponseEnd) -> str:
+        """Return a representation of the end marker."""
         return "ResponseEnd()"
 
 
