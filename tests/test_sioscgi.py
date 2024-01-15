@@ -285,6 +285,25 @@ class TestBadResponseHeaders(unittest.TestCase):
                 None, [("Location", "/foo"), ("Other-Thing", "bar")]
             )
 
+    def test_headers_hop_by_hop(self: TestBadResponseHeaders) -> None:
+        """Test trying to send a hop-by-hop header."""
+        uut = sioscgi.SCGIConnection()
+        uut.receive_data(TestGood.RX_DATA)
+        while uut.next_event() is not None:
+            pass
+        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
+        with self.assertRaises(sioscgi.LocalProtocolError):
+            uut.send(
+                sioscgi.ResponseHeaders(
+                    "200 OK",
+                    [
+                        ("Content-Type", "text/plain; charset=UTF-8"),
+                        ("Content-Length", "27"),
+                        ("Connection", "keep-alive"),
+                    ],
+                )
+            )
+
 
 class TestBadRXData(unittest.TestCase):
     """Test various cases of invalid received data."""
@@ -439,25 +458,6 @@ class TestBadResponseSequence(unittest.TestCase):
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         with self.assertRaises(sioscgi.LocalProtocolError):
             uut.send(sioscgi.ResponseEnd())
-
-    def test_headers_hop_by_hop(self: TestBadResponseSequence) -> None:
-        """Test trying to send a hop-by-hop header."""
-        uut = sioscgi.SCGIConnection()
-        uut.receive_data(TestGood.RX_DATA)
-        while uut.next_event() is not None:
-            pass
-        self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
-        with self.assertRaises(sioscgi.LocalProtocolError):
-            uut.send(
-                sioscgi.ResponseHeaders(
-                    "200 OK",
-                    [
-                        ("Content-Type", "text/plain; charset=UTF-8"),
-                        ("Content-Length", "27"),
-                        ("Connection", "keep-alive"),
-                    ],
-                )
-            )
 
 
 class TestOtherErrors(unittest.TestCase):
