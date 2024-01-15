@@ -233,14 +233,14 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_non_latin1_content_type(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable Content-Type header value."""
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.ResponseHeaderNotISO88591Error):
             sioscgi.ResponseHeaders(
                 "200 OK", [("Content-Type", "text/Ω"), ("Content-Length", "0")]
             )
 
     def test_non_latin1_location(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable Location header value."""
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.ResponseHeaderNotISO88591Error):
             sioscgi.ResponseHeaders(
                 "301 Moved Permanently",
                 [
@@ -252,7 +252,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_non_latin1_other(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable general header value."""
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.ResponseHeaderNotISO88591Error):
             sioscgi.ResponseHeaders(
                 "200 OK",
                 [
@@ -268,7 +268,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
         A local redirect must not have any headers other than Location.
         """
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.NonDocumentHeadersError):
             sioscgi.ResponseHeaders(
                 None,
                 [("Location", "/foo"), ("Content-Type", "text/plain; charset=UTF-8")],
@@ -280,7 +280,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
         A local redirect must not have any headers other than Location.
         """
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.NonDocumentHeadersError):
             sioscgi.ResponseHeaders(
                 None, [("Location", "/foo"), ("Other-Thing", "bar")]
             )
@@ -292,7 +292,7 @@ class TestBadResponseHeaders(unittest.TestCase):
         while uut.next_event() is not None:
             pass
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.ResponseHeaderHopByHopError):
             uut.send(
                 sioscgi.ResponseHeaders(
                     "200 OK",
@@ -313,7 +313,7 @@ class TestBadRXData(unittest.TestCase):
         uut = sioscgi.SCGIConnection()
         uut.receive_data(TestGood.RX_DATA[:-1])
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.RemotePrematureEOFError):
             uut.next_event()
 
     def test_headers_no_comma(self: TestBadRXData) -> None:
@@ -329,7 +329,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )  # Comma replaced with @
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.BadNetstringTerminatorError):
             uut.next_event()
 
     def test_headers_no_scgi(self: TestBadRXData) -> None:
@@ -344,7 +344,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.NoSCGIVariableError):
             uut.next_event()
 
     def test_headers_no_content_length(self: TestBadRXData) -> None:
@@ -359,7 +359,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.NoContentLengthError):
             uut.next_event()
 
     def test_headers_no_nul(self: TestBadRXData) -> None:
@@ -375,7 +375,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.RequestHeadersNotNULTerminatedError):
             uut.next_event()
 
     def test_headers_odd_number(self: TestBadRXData) -> None:
@@ -395,7 +395,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.RequestHeadersOddStringCountError):
             uut.next_event()
 
     def test_headers_wrong_scgi(self: TestBadRXData) -> None:
@@ -415,7 +415,7 @@ class TestBadRXData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.BadSCGIVersionError):
             uut.next_event()
 
     def test_headers_length_space(self: TestBadRXData) -> None:
@@ -423,7 +423,7 @@ class TestBadRXData(unittest.TestCase):
         uut = sioscgi.SCGIConnection()
         uut.receive_data(b" :")
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.BadNetstringLengthError):
             uut.next_event()
 
     def test_headers_length_non_integer(self: TestBadRXData) -> None:
@@ -431,7 +431,7 @@ class TestBadRXData(unittest.TestCase):
         uut = sioscgi.SCGIConnection()
         uut.receive_data(b"A:")
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.RemoteProtocolError):
+        with self.assertRaises(sioscgi.BadNetstringLengthError):
             uut.next_event()
 
 
@@ -446,7 +446,7 @@ class TestBadResponseSequence(unittest.TestCase):
             pass
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
         tx_body = sioscgi.ResponseBody(b"abcd")
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.BadEventInStateError):
             uut.send(tx_body)
 
     def test_response_end_before_headers(self: TestBadResponseSequence) -> None:
@@ -456,7 +456,7 @@ class TestBadResponseSequence(unittest.TestCase):
         while uut.next_event() is not None:
             pass
         self.assertIs(uut.tx_state, sioscgi.TXState.HEADERS)
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.BadEventInStateError):
             uut.send(sioscgi.ResponseEnd())
 
 
@@ -475,5 +475,5 @@ class TestOtherErrors(unittest.TestCase):
         # local software is written properly (once the remote peer sends EOF, the kernel
         # should prevent it from being able to send any more data, so if this happens,
         # it means the local software detected EOF improperly).
-        with self.assertRaises(sioscgi.LocalProtocolError):
+        with self.assertRaises(sioscgi.ReceiveAfterEOFError):
             uut.receive_data(b"x")

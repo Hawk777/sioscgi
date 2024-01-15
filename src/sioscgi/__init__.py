@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import collections
 import enum
+import functools
 import logging
 import wsgiref.headers
 import wsgiref.util
+from collections.abc import Callable
+from typing import ClassVar, NoReturn
 
 
 @enum.unique
@@ -44,15 +47,287 @@ class ProtocolError(Exception):
 
 
 class LocalProtocolError(ProtocolError):
-    """Raised when the local application violates protocol."""
+    """
+    Raised when the local application violates protocol.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
 
     __slots__ = ()
+
+
+class ResponseHeaderHopByHopError(LocalProtocolError):
+    """Raised when a response includes a hop-by-hop header."""
+
+    __slots__ = ()
+
+    def __init__(self: ResponseHeaderHopByHopError, name: str) -> None:
+        """
+        Construct a new ResponseHeaderHopByHopError.
+
+        :param name: The name of the unacceptable header.
+        """
+        super().__init__(f"Header {name} is hop-by-hop and therefore illegal")
+
+
+class ResponseHeaderNotISO88591Error(LocalProtocolError):
+    """Raised when a response header value cannot be encoded in ISO-8859-1."""
+
+    __slots__ = ()
+
+    def __init__(self: ResponseHeaderNotISO88591Error) -> None:
+        """Construct a new ResponseHeaderNotISO88591Error."""
+        super().__init__("A response header is not ISO-8859-1-encodable")
+
+
+class NonDocumentHeadersError(LocalProtocolError):
+    """Raised when response headers are invalid for a non-document response."""
+
+    __slots__ = ()
+
+    def __init__(self: NonDocumentHeadersError) -> None:
+        """Construct a new NonDocumentHeadersError."""
+        super().__init__(
+            "Non-document responses must contain a Location header and no others"
+        )
+
+
+class ReceiveAfterEOFError(LocalProtocolError):
+    """Raised when data is received after EOF."""
+
+    __slots__ = ()
+
+    def __init__(self: ReceiveAfterEOFError) -> None:
+        """Construct a new ReceiveAfterEOFError."""
+        super().__init__("Data received after EOF")
+
+
+class BadEventInStateError(LocalProtocolError):
+    """Raised when the local application sends an unacceptable event."""
+
+    __slots__ = ()
+
+    def __init__(
+        self: BadEventInStateError, event: type[Event], state: TXState
+    ) -> None:
+        """
+        Construct a new BadEventInStateError.
+
+        :param event: The event that the application tried to send.
+        :param state: The state that the state machine was in.
+        """
+        super().__init__(f"Event {type(event)} prohibited in state {state}")
 
 
 class RemoteProtocolError(ProtocolError):
-    """Raised when the remote peer violates protocol."""
+    """
+    Raised when the remote peer violates protocol.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
 
     __slots__ = ()
+
+
+class RequestHeadersError(RemoteProtocolError):
+    """
+    Raised when the remote peer sends an invalid environment block.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
+
+    __slots__ = ()
+
+
+class NetstringError(RequestHeadersError):
+    """
+    Raised when the remote peer sends an invalid netstring.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
+
+    __slots__ = ()
+
+
+class BadNetstringLengthError(NetstringError):
+    """Raised when the remote peer sends a netstring with an invalid length prefix."""
+
+    __slots__ = ()
+
+    def __init__(self: BadNetstringLengthError) -> None:
+        """Construct a new BadNetstringLengthError."""
+        super().__init__("Invalid netstring length prefix")
+
+
+class Error(NetstringError):
+    """Raised when the remote peer sends a netstring length that is too large."""
+
+    __slots__ = ()
+
+    def __init__(self: Error, length: int, limit: int) -> None:
+        """
+        Construct a new Error.
+
+        :param length: The length sent by the remote peer.
+        :param limit: The maximum permitted length.
+        """
+        super().__init__(f"Netstring too long (got {length}, limit {limit})")
+
+
+class BadNetstringTerminatorError(NetstringError):
+    """Raised when the remote peer sends a netstring with the wrong terminator."""
+
+    __slots__ = ()
+
+    def __init__(self: BadNetstringTerminatorError) -> None:
+        """Construct a new BadNetstringTerminatorError."""
+        super().__init__("Invalid end-of-environment character")
+
+
+class RequestHeadersStructuralError(RequestHeadersError):
+    """
+    Raised when the remote peer sends request headers with a structural problem.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
+
+    __slots__ = ()
+
+
+class RequestHeadersNotNULTerminatedError(RequestHeadersStructuralError):
+    """Raised when the remote peer sends request headers whose last byte is not NUL."""
+
+    __slots__ = ()
+
+    def __init__(self: RequestHeadersNotNULTerminatedError) -> None:
+        """Construct a new RequestHeadersNotNULTerminatedError."""
+        super().__init__("Environment block not NUL-terminated")
+
+
+class RequestHeadersOddStringCountError(RequestHeadersStructuralError):
+    """Raised when the remote peer sends an odd number of strings in the environment."""
+
+    __slots__ = ()
+
+    def __init__(self: RequestHeadersOddStringCountError) -> None:
+        """Construct a new RequestHeadersOddStringCountError."""
+        super().__init__("Environment block missing final value")
+
+
+class RequestHeaderNotISO88591Error(RequestHeadersStructuralError):
+    """Raised when the remote peer sends a variable whose name is invalid ISO-8859-1."""
+
+    __slots__ = ()
+
+    def __init__(self: RequestHeaderNotISO88591Error, name: bytes) -> None:
+        """
+        Construct a new RequestHeaderNotISO88591Error.
+
+        :param name: The non-ISO-8859-1 variable name.
+        """
+        super().__init__(f"Environment variable name {name!r} is not ISO-8859-1")
+
+
+class RequestHeaderEmptyError(RequestHeadersStructuralError):
+    """Raised when the remote peer sends a variable whose name is empty."""
+
+    __slots__ = ()
+
+    def __init__(self: RequestHeaderEmptyError) -> None:
+        """Construct a new RequestHeaderEmptyError."""
+        super().__init__("Environment variable with empty name")
+
+
+class DuplicateRequestHeaderError(RequestHeadersStructuralError):
+    """Raised when the remote peer sends two variables with the same name."""
+
+    __slots__ = ()
+
+    def __init__(self: DuplicateRequestHeaderError, name: str) -> None:
+        """
+        Construct a new DuplicateRequestHeaderError.
+
+        :param name: The name of the variable which appears multiple times.
+        """
+        super().__init__(f"Duplicate environment variable {name}")
+
+
+class RequestHeadersContentError(RequestHeadersError):
+    """
+    Raised when the remote peer sends request headers with a content problem.
+
+    This is the base class of various specific errors and is never raised directly.
+    """
+
+    __slots__ = ()
+
+
+class NoSCGIVariableError(RequestHeadersContentError):
+    """Raised when the remote peer does not send the SCGI variable."""
+
+    __slots__ = ()
+
+    def __init__(self: NoSCGIVariableError) -> None:
+        """Construct a new NoSCGIVariableError."""
+        super().__init__("Mandatory variable SCGI missing")
+
+
+class BadSCGIVersionError(RequestHeadersContentError):
+    """Raised when the remote peer is speaking an unsupported version of SCGI."""
+
+    __slots__ = ()
+
+    def __init__(self: BadSCGIVersionError, version: bytes) -> None:
+        """
+        Construct a new BadSCGIVersionError.
+
+        :param version: The version that the peer is speaking.
+        """
+        super().__init__(f"SCGI variable is {version!r}, expected 1")
+
+
+class NoContentLengthError(RequestHeadersContentError):
+    """Raised when the remote peer does not send the CONTENT_LENGTH variable."""
+
+    __slots__ = ()
+
+    def __init__(self: NoContentLengthError) -> None:
+        """Construct a new NoContentLengthError."""
+        super().__init__("Mandatory variable CONTENT_LENGTH missing")
+
+
+class BadContentLengthError(RequestHeadersContentError):
+    """Raised when the remote peer sends an invalid CONTENT_LENGTH value."""
+
+    __slots__ = ()
+
+    def __init__(self: BadContentLengthError, value: str) -> None:
+        """
+        Construct a new BadContentLengthError.
+
+        :param value: The invalid value.
+        """
+        super().__init__(f"Invalid CONTENT_LENGTH {value}, expected a whole number")
+
+
+class RemoteBodyOverlongError(RemoteProtocolError):
+    """Raised when the remote peer sends more than CONTENT_LENGTH body bytes."""
+
+    __slots__ = ()
+
+    def __init__(self: RemoteBodyOverlongError) -> None:
+        """Construct a new RemoteBodyOverlongError."""
+        super().__init__("Request body longer than CONTENT_LENGTH")
+
+
+class RemotePrematureEOFError(RemoteProtocolError):
+    """Raised when the remote peer closes the connection before it should have."""
+
+    __slots__ = ()
+
+    def __init__(self: RemotePrematureEOFError) -> None:
+        """Construct a new RemotePrematureEOFError."""
+        super().__init__("Premature EOF")
 
 
 class Event:
@@ -224,9 +499,7 @@ class ResponseHeaders(Event):
         # .keys() is necessary because wsgiref.headers.Headers objects are not iterable!
         for name in self.other_headers.keys():  # noqa: SIM118
             if wsgiref.util.is_hop_by_hop(name):
-                raise LocalProtocolError(
-                    f"Header {name} is hop-by-hop and therefore illegal"
-                )
+                raise ResponseHeaderHopByHopError(name)
         try:
             # The name and value of every header must be encodable in ISO-8859-1…
             bytes(self.other_headers)
@@ -239,7 +512,7 @@ class ResponseHeaders(Event):
             if self.status is not None:
                 self.status.encode("ISO-8859-1")
         except UnicodeError as exp:
-            raise LocalProtocolError("A header is not ISO-8859-1-encodable") from exp
+            raise ResponseHeaderNotISO88591Error from exp
         if self.status is None:
             self._sanity_check_without_document()
 
@@ -251,13 +524,9 @@ class ResponseHeaders(Event):
         """
         # A response without a document must contain a Location header and nothing else.
         if self.location is None:
-            raise LocalProtocolError(
-                "Header Location is mandatory for non-document response"
-            )
+            raise NonDocumentHeadersError
         if self.content_type is not None or self.other_headers:
-            raise LocalProtocolError(
-                "Headers other than Location are prohibited for non-document response"
-            )
+            raise NonDocumentHeadersError
 
     @property
     def _content_type_encoded(self: ResponseHeaders) -> bytes:
@@ -324,13 +593,7 @@ class SCGIConnection:
             before considering any bytes in _rx_buffer.
             """,
         "_tx_state": """The state of the transmit half.""",
-        "_error_class": """
-            The type of the error that was detected.
-
-            The error may or may not have been raised yet. In either case, it will be
-            raised on the next call to next_event or send.
-            """,
-        "_error_msg": """The textual message for the detected error.""",
+        "_error": """A callable which, when called, raises the detected error.""",
         "_event_queue": """
             The decoded but not yet returned events.
 
@@ -367,8 +630,7 @@ class SCGIConnection:
 
     _rx_state: RXState
     _tx_state: TXState
-    _error_class: type[ProtocolError] | None
-    _error_msg: str | None
+    _error: Callable[[], ProtocolError] | None
     _event_queue: collections.deque[Event]
     _rx_buffer: collections.deque[bytes]
     _rx_buffer_length: int
@@ -376,6 +638,14 @@ class SCGIConnection:
     _rx_eof: bool
     _rx_env_length: int
     _rx_body_remaining: int
+
+    _MAX_NETSTRING_LENGTH_LENGTH: ClassVar[int] = 15
+    """
+    The maximum length of the netstring length prefix.
+
+    If the length prefix is more than 15 characters long, then the netstring itself is
+    almost a TiB long or more, which is unreasonable.
+    """
 
     def __init__(self: SCGIConnection, rx_buffer_limit: int = 65536) -> None:
         """
@@ -388,8 +658,7 @@ class SCGIConnection:
         super().__init__()
         self._rx_state = RXState.HEADER_LENGTH
         self._tx_state = TXState.HEADERS
-        self._error_class = None
-        self._error_msg = None
+        self._error = None
         self._event_queue = collections.deque()
         self._rx_buffer = collections.deque()
         self._rx_buffer_length = 0
@@ -428,7 +697,7 @@ class SCGIConnection:
                 logging.getLogger(__name__).debug(
                     "Received %d bytes after EOF", len(data)
                 )
-                raise self._report_local_error("Data received after EOF")
+                self._save_and_raise_error(ReceiveAfterEOFError)
             if self._rx_state is not RXState.ERROR:
                 logging.getLogger(__name__).debug("Received %d bytes", len(data))
                 self._rx_buffer.append(data)
@@ -442,8 +711,11 @@ class SCGIConnection:
         # it.
         try:
             self._parse_events()
-        except RemoteProtocolError as exp:
-            self._report_error(RemoteProtocolError, str(exp))
+        except RemoteProtocolError:
+            # The error should already have been saved in self._error, so all we should
+            # need to do is swallow the exception to prevent it from coming out of the
+            # wrong method.
+            assert self._error is not None
 
     def next_event(self: SCGIConnection) -> Event | None:
         """
@@ -459,8 +731,8 @@ class SCGIConnection:
         :raises RemoteProtocolError: If the remote peer violated SCGI protocol rules.
         """
         if self._rx_state is RXState.ERROR:
-            assert self._error_class is not None  # Implied by RXState.ERROR
-            raise self._error_class(self._error_msg)
+            assert self._error is not None  # Implied by RXState.ERROR
+            raise self._error()  # noqa: RSE102
         if self._event_queue:
             return self._event_queue.popleft()
         return None
@@ -474,8 +746,8 @@ class SCGIConnection:
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
         if self._tx_state is TXState.ERROR:
-            assert self._error_class is not None  # Implied by TXState.ERROR
-            raise self._error_class(self._error_msg)
+            assert self._error is not None  # Implied by TXState.ERROR
+            raise self._error()  # noqa: RSE102
         if self._tx_state is TXState.HEADERS and isinstance(event, ResponseHeaders):
             self._tx_state = event.succeeding_state
             return event.encode()
@@ -489,9 +761,10 @@ class SCGIConnection:
         if self._tx_state is TXState.NO_BODY and isinstance(event, ResponseEnd):
             self._tx_state = TXState.DONE
             return None
-        raise self._report_local_error(
-            f"Event {type(event)} prohibited in state {self._tx_state}"
+        self._save_and_raise_error(
+            functools.partial(BadEventInStateError, type(event), self._tx_state)
         )
+        raise AssertionError
 
     def _parse_events(self: SCGIConnection) -> None:
         """
@@ -508,11 +781,11 @@ class SCGIConnection:
             if self._rx_buffer:
                 # The length-of-environment integer ends with a colon.
                 index = self._rx_buffer[-1].find(b":")
-                if index < 0 and self._rx_buffer_length > 15:
-                    # If the length prefix is more than 15 characters long, then the
-                    # netstring itself is almost a TiB long or more, which is
-                    # unreasonable.
-                    raise RemoteProtocolError("Invalid netstring length prefix")
+                if (
+                    index < 0
+                    and self._rx_buffer_length > self._MAX_NETSTRING_LENGTH_LENGTH
+                ):
+                    self._save_and_raise_error(BadNetstringLengthError)
                 if index >= 0:
                     logger.debug("Found : at %d", index)
                     # We have the full length-of-environment integer and its terminating
@@ -530,17 +803,16 @@ class SCGIConnection:
                     # Parse the length-of-environment integer.
                     try:
                         self._rx_env_length = int(consumed.decode("ASCII"))
-                    except ValueError as exp:
-                        raise RemoteProtocolError(
-                            "Invalid length-of-environment"
-                        ) from exp
+                    except ValueError:
+                        self._save_and_raise_error(BadNetstringLengthError)
                     # Sanity check the length-of-environment integer.
                     if self._rx_env_length <= 0:
-                        raise RemoteProtocolError("Invalid length-of-environment")
+                        self._save_and_raise_error(BadNetstringLengthError)
                     if self._rx_env_length > self._rx_buffer_limit:
-                        raise RemoteProtocolError(
-                            f"Headers too long (got {self._rx_env_length}, "
-                            f"limit {self._rx_buffer_limit})"
+                        self._save_and_raise_error(
+                            functools.partial(
+                                Error, self._rx_env_length, self._rx_buffer_limit
+                            )
                         )
                     # Advance the state machine, keeping any residual bytes.
                     self._rx_state = RXState.HEADERS
@@ -572,51 +844,56 @@ class SCGIConnection:
                 self._rx_buffer_length = 0
                 # Check that the comma is a comma.
                 if comma != ord(","):
-                    raise RemoteProtocolError("Invalid end-of-environment character")
+                    self._save_and_raise_error(BadNetstringTerminatorError)
                 # Check that the last byte of the environment block is a NUL
                 if environment[-1] != 0x00:
-                    raise RemoteProtocolError("Environment block not NUL-terminated")
+                    self._save_and_raise_error(RequestHeadersNotNULTerminatedError)
                 # Split the environment block into NUL-terminated chunks.
                 split_environment = environment[:-1].split(b"\x00")
                 # Check that there are an even number of parts.
                 if len(split_environment) % 2 == 1:
-                    raise RemoteProtocolError("Environment block missing final value")
+                    self._save_and_raise_error(RequestHeadersOddStringCountError)
                 # Build the dictionary.
                 env_dict: dict[str, bytes] = {}
                 for i in range(0, len(split_environment), 2):
                     try:
                         key = split_environment[i].decode("ISO-8859-1")
-                    except UnicodeError as exp:
-                        raise RemoteProtocolError(
-                            "Environment variable name is not ISO-8859-1"
-                        ) from exp
-                    if not key:
-                        raise RemoteProtocolError(
-                            "Environment variable with empty name"
+                    except UnicodeError:
+                        self._save_and_raise_error(
+                            functools.partial(
+                                RequestHeaderNotISO88591Error, split_environment[i]
+                            )
                         )
+                    if not key:
+                        self._save_and_raise_error(RequestHeaderEmptyError)
                     if key in env_dict:
-                        raise RemoteProtocolError(
-                            f"Duplicate environment variable {key}"
+                        self._save_and_raise_error(
+                            functools.partial(DuplicateRequestHeaderError, key)
                         )
                     env_dict[key] = split_environment[i + 1]
                 # Check for mandatory environment variables.
-                if env_dict.get("SCGI", None) != b"1":
-                    raise RemoteProtocolError("Mandatory variable SCGI not set to 1")
+                scgi_version = env_dict.get("SCGI", None)
+                if scgi_version is None:
+                    self._save_and_raise_error(NoSCGIVariableError)
+                if scgi_version != b"1":
+                    self._save_and_raise_error(
+                        functools.partial(BadSCGIVersionError, scgi_version)
+                    )
                 # Advance the state machine, keeping any residual bytes.
                 self._rx_state = RXState.BODY
                 if residue:
                     self._rx_buffer.append(residue)
                     self._rx_buffer_length += len(residue)
-                content_length = env_dict.get("CONTENT_LENGTH", b"")
+                content_length = env_dict.get("CONTENT_LENGTH", None)
+                if content_length is None:
+                    self._save_and_raise_error(NoContentLengthError)
                 try:
                     self._rx_body_remaining = int(content_length)
-                except ValueError as exp:
-                    raise RemoteProtocolError(
-                        "CONTENT_LENGTH missing or not a whole number"
-                    ) from exp
+                except ValueError:
+                    self._rx_body_remaining = -1
                 if self._rx_body_remaining < 0:
-                    raise RemoteProtocolError(
-                        "CONTENT_LENGTH missing or not a whole number"
+                    self._save_and_raise_error(
+                        functools.partial(BadContentLengthError, content_length)
                     )
                 self._event_queue.append(RequestHeaders(env_dict))
                 logger.debug(
@@ -640,39 +917,27 @@ class SCGIConnection:
                     self._event_queue.append(RequestEnd())
                     self._rx_state = RXState.DONE
             else:
-                raise RemoteProtocolError("Request body longer than CONTENT_LENGTH")
+                self._save_and_raise_error(RemoteBodyOverlongError)
         if self._rx_state is RXState.DONE:
             logger.debug("In RX_DONE")
             if self._rx_buffer_length:
-                raise RemoteProtocolError("Request body longer than CONTENT_LENGTH")
+                self._save_and_raise_error(RemoteBodyOverlongError)
         if self._rx_eof and self._rx_state in {
             RXState.HEADER_LENGTH,
             RXState.HEADERS,
             RXState.BODY,
         }:
-            raise RemoteProtocolError("Premature EOF")
+            self._save_and_raise_error(RemotePrematureEOFError)
 
-    def _report_local_error(self: SCGIConnection, msg: str) -> LocalProtocolError:
+    def _save_and_raise_error(
+        self: SCGIConnection, error: Callable[[], ProtocolError]
+    ) -> NoReturn:
         """
-        Record and raise a local protocol error.
+        Record and immediately raise a protocol error.
 
-        :param msg: The error message.
-        :return LocalProtocolError: The exception that the caller should raise.
-        """
-        self._report_error(LocalProtocolError, msg)
-        return LocalProtocolError(msg)
-
-    def _report_error(
-        self: SCGIConnection, error_class: type[ProtocolError], msg: str
-    ) -> None:
-        """
-        Record an error for later reporting.
-
-        :param error_class: The class of protocol error, either LocalProtocolError or
-            RemoteProtocolError.
-        :param msg: The error message.
+        :param error: A callable that, when invoked, constructs the error.
         """
         self._rx_state = RXState.ERROR
         self._tx_state = TXState.ERROR
-        self._error_class = error_class
-        self._error_msg = msg
+        self._error = error
+        raise error()  # noqa: RSE102
