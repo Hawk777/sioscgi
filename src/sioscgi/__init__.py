@@ -643,7 +643,7 @@ class SCGIConnection:
             else:
                 self._report_remote_error("Request body longer than CONTENT_LENGTH")
         if self._rx_state is RXState.DONE:
-            logger.debug("In %s", self._rx_state)
+            logger.debug("In RX_DONE")
             if self._rx_buffer_length:
                 self._report_remote_error("Request body longer than CONTENT_LENGTH")
         if self._rx_buffer_length > self._rx_buffer_limit:
