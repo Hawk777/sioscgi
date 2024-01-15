@@ -178,7 +178,7 @@ class ResponseHeaders(Event):
             # Checked in sanity checks if status is None
             assert self.location is not None
             return b"Location: " + self.location.encode("ISO-8859-1") + b"\r\n\r\n"
-        elif self.location is not None:
+        if self.location is not None:
             # This is a client redirect with document, which should be served as
             # Location, then Status, then Content-Type (if present), then everything
             # else.
@@ -191,24 +191,20 @@ class ResponseHeaders(Event):
                 + self._content_type_encoded
                 + bytes(self.other_headers)
             )
-        else:
-            # This is a document response, which should be served as Content-Type (if
-            # present), then Status, then everything else.
-            return (
-                self._content_type_encoded
-                + b"Status: "
-                + self.status.encode("ISO-8859-1")
-                + b"\r\n"
-                + bytes(self.other_headers)
-            )
+        # This is a document response, which should be served as Content-Type (if
+        # present), then Status, then everything else.
+        return (
+            self._content_type_encoded
+            + b"Status: "
+            + self.status.encode("ISO-8859-1")
+            + b"\r\n"
+            + bytes(self.other_headers)
+        )
 
     @property
     def succeeding_state(self: ResponseHeaders) -> TXState:
         """Return the state the transmit half be in after sending these headers."""
-        if self.status is not None:
-            return TXState.BODY
-        else:
-            return TXState.NO_BODY
+        return TXState.BODY if self.status is not None else TXState.NO_BODY
 
     def __repr__(self: ResponseHeaders) -> str:
         """Return a representation of the response headers."""
@@ -266,10 +262,9 @@ class ResponseHeaders(Event):
         If the header is present, this is its name and value encoded to bytes plus a
         terminating CRLF. If not, this is the empty bytes.
         """
-        if self.content_type is not None:
-            return b"Content-Type: " + self.content_type.encode("ISO-8859-1") + b"\r\n"
-        else:
+        if self.content_type is None:
             return b""
+        return b"Content-Type: " + self.content_type.encode("ISO-8859-1") + b"\r\n"
 
 
 class ResponseBody(Event):
@@ -454,10 +449,9 @@ class SCGIConnection:
         if self._rx_state is RXState.ERROR:
             assert self._error_class is not None  # Implied by RXState.ERROR
             raise self._error_class(self._error_msg)
-        elif self._event_queue:
+        if self._event_queue:
             return self._event_queue.popleft()
-        else:
-            return None
+        return None
 
     def send(self: SCGIConnection, event: Event) -> bytes | None:
         """
@@ -470,24 +464,22 @@ class SCGIConnection:
         if self._tx_state is TXState.ERROR:
             assert self._error_class is not None  # Implied by TXState.ERROR
             raise self._error_class(self._error_msg)
-        elif self._tx_state is TXState.HEADERS and isinstance(event, ResponseHeaders):
+        if self._tx_state is TXState.HEADERS and isinstance(event, ResponseHeaders):
             self._tx_state = event.succeeding_state
             return event.encode()
-        elif self._tx_state is TXState.BODY and isinstance(
+        if self._tx_state is TXState.BODY and isinstance(
             event, (ResponseBody, ResponseEnd)
         ):
             if isinstance(event, ResponseBody):
                 return event.data
-            else:
-                self._tx_state = TXState.DONE
-                return None
-        elif self._tx_state is TXState.NO_BODY and isinstance(event, ResponseEnd):
             self._tx_state = TXState.DONE
             return None
-        else:
-            raise self._report_local_error(
-                f"Event {type(event)} prohibited in state {self._tx_state}"
-            )
+        if self._tx_state is TXState.NO_BODY and isinstance(event, ResponseEnd):
+            self._tx_state = TXState.DONE
+            return None
+        raise self._report_local_error(
+            f"Event {type(event)} prohibited in state {self._tx_state}"
+        )
 
     def _parse_events(self: SCGIConnection) -> None:
         """Remove bytes from the receive buffer and create events in the event queue."""
