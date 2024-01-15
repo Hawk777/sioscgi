@@ -421,7 +421,7 @@ class TestBadRXData(unittest.TestCase):
     def test_headers_length_space(self: TestBadRXData) -> None:
         """Test rejection of a netstring length starting with a space."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(b" ")
+        uut.receive_data(b" :")
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
@@ -429,7 +429,7 @@ class TestBadRXData(unittest.TestCase):
     def test_headers_length_non_integer(self: TestBadRXData) -> None:
         """Test rejection of a netstring length starting with a non-integer."""
         uut = sioscgi.SCGIConnection()
-        uut.receive_data(b"A")
+        uut.receive_data(b"A:")
         uut.receive_data(b"")
         with self.assertRaises(sioscgi.RemoteProtocolError):
             uut.next_event()
