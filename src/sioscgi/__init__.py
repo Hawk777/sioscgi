@@ -470,7 +470,7 @@ class SCGIConnection:
             self._tx_state = event.succeeding_state
             return event.encode()
         if self._tx_state is TXState.BODY and isinstance(
-            event, (ResponseBody, ResponseEnd)
+            event, ResponseBody | ResponseEnd
         ):
             if isinstance(event, ResponseBody):
                 return event.data
