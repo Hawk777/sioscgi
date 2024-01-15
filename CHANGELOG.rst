@@ -1,3 +1,10 @@
+Changes in 4.1.0
+================
+
+Ruff linting and formatting was applied. Substantial internal refactoring was
+performed. A more detailed exception hierarchy was introduced, with
+``LocalProtocolError`` and ``RemoteProtocolError`` becoming base classes.
+
 Changes in 4.0.0
 ================
 
