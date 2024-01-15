@@ -608,7 +608,7 @@ class SCGIConnection:
                                         env_dict.get("CONTENT_LENGTH", b"")
                                     )
                                     if self._rx_body_remaining < 0:
-                                        raise ValueError()
+                                        raise ValueError
                                     self._event_queue.append(RequestHeaders(env_dict))
                                     logger.debug(
                                         "Retrieved %d headers, residue is %d bytes",
