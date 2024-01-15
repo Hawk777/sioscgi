@@ -1,5 +1,7 @@
 """Implements the SCGI protocol."""
 
+from __future__ import annotations
+
 import collections
 import enum
 import logging
@@ -66,7 +68,7 @@ class RequestHeaders(Event):
 
     environment: dict[str, bytes]
 
-    def __init__(self, environment: dict[str, bytes]):
+    def __init__(self: RequestHeaders, environment: dict[str, bytes]) -> None:
         """
         Construct a new RequestHeaders.
 
@@ -75,7 +77,7 @@ class RequestHeaders(Event):
         self.environment = environment
         """The environment variables, as a dict from name to value"""
 
-    def __repr__(self) -> str:
+    def __repr__(self: RequestHeaders) -> str:
         return f"RequestHeaders({self.environment})"
 
 
@@ -94,7 +96,7 @@ class RequestBody(Event):
 
     data: bytes
 
-    def __init__(self, data: bytes):
+    def __init__(self: RequestBody, data: bytes) -> None:
         """
         Construct a new RequestBody.
 
@@ -103,7 +105,7 @@ class RequestBody(Event):
         self.data = data
         """The body data chunk"""
 
-    def __repr__(self) -> str:
+    def __repr__(self: RequestBody) -> str:
         return f"RequestBody({self.data!r})"
 
 
@@ -118,7 +120,7 @@ class RequestEnd(Event):
 
     __slots__ = ()
 
-    def __repr__(self) -> str:
+    def __repr__(self: RequestEnd) -> str:
         return "RequestEnd()"
 
 
@@ -138,7 +140,9 @@ class ResponseHeaders(Event):
     location: str | None
     other_headers: wsgiref.headers.Headers
 
-    def __init__(self, status: str | None, headers: list[tuple[str, str]]):
+    def __init__(
+        self: ResponseHeaders, status: str | None, headers: list[tuple[str, str]]
+    ) -> None:
         """
         Construct a ResponseHeaders.
 
@@ -155,7 +159,7 @@ class ResponseHeaders(Event):
         del self.other_headers["Location"]
         self._sanity_check()
 
-    def encode(self) -> bytes:
+    def encode(self: ResponseHeaders) -> bytes:
         """Convert this event into its encoding as raw bytes."""
         if self.status is None:
             # This is a local redirect or client redirect without document, which should
@@ -189,17 +193,17 @@ class ResponseHeaders(Event):
             )
 
     @property
-    def succeeding_state(self) -> TXState:
+    def succeeding_state(self: ResponseHeaders) -> TXState:
         """Return the state the transmit half be in after sending these headers."""
         if self.status is not None:
             return TXState.BODY
         else:
             return TXState.NO_BODY
 
-    def __repr__(self) -> str:
+    def __repr__(self: ResponseHeaders) -> str:
         return f"ResponseHeaders(status={self.status}, content_type={self.content_type}, location={self.location}, other_headers={self.other_headers!r})"
 
-    def _sanity_check(self) -> None:
+    def _sanity_check(self: ResponseHeaders) -> None:
         """
         Perform sanity checks to verify that the headers are consistent.
 
@@ -227,7 +231,7 @@ class ResponseHeaders(Event):
         if self.status is None:
             self._sanity_check_without_document()
 
-    def _sanity_check_without_document(self) -> None:
+    def _sanity_check_without_document(self: ResponseHeaders) -> None:
         """
         Perform sanity checks specific to responses without bodies.
 
@@ -244,7 +248,7 @@ class ResponseHeaders(Event):
             )
 
     @property
-    def _content_type_encoded(self) -> bytes:
+    def _content_type_encoded(self: ResponseHeaders) -> bytes:
         """
         Return the encoded form of the Content-Type header.
 
@@ -264,7 +268,7 @@ class ResponseBody(Event):
 
     data: bytes
 
-    def __init__(self, data: bytes):
+    def __init__(self: ResponseBody, data: bytes) -> None:
         """
         Construct a ResponseBody.
 
@@ -272,7 +276,7 @@ class ResponseBody(Event):
         """
         self.data = data
 
-    def __repr__(self) -> str:
+    def __repr__(self: ResponseBody) -> str:
         return f"ResponseBody({self.data!r})"
 
 
@@ -285,7 +289,7 @@ class ResponseEnd(Event):
 
     __slots__ = ()
 
-    def __repr__(self) -> str:
+    def __repr__(self: ResponseEnd) -> str:
         return "ResponseEnd()"
 
 
@@ -323,7 +327,7 @@ class SCGIConnection:
     _rx_env_length: int
     _rx_body_remaining: int
 
-    def __init__(self, rx_buffer_limit: int = 65536):
+    def __init__(self: SCGIConnection, rx_buffer_limit: int = 65536) -> None:
         """
         Construct a new SCGIConnection.
 
@@ -345,7 +349,7 @@ class SCGIConnection:
         self._rx_body_remaining = 0
 
     @property
-    def rx_state(self) -> RXState:
+    def rx_state(self: SCGIConnection) -> RXState:
         """
         The state the receive half of the connection is currently in.
 
@@ -356,11 +360,11 @@ class SCGIConnection:
         return self._rx_state
 
     @property
-    def tx_state(self) -> TXState:
+    def tx_state(self: SCGIConnection) -> TXState:
         """The state the transmit half of the connection is currently in."""
         return self._tx_state
 
-    def receive_data(self, data: bytes) -> None:
+    def receive_data(self: SCGIConnection, data: bytes) -> None:
         """
         Provide data received over the network to the SCGI connection.
 
@@ -384,7 +388,7 @@ class SCGIConnection:
             self._rx_eof = True
         self._parse_events()
 
-    def next_event(self) -> Event | None:
+    def next_event(self: SCGIConnection) -> Event | None:
         """
         Return the next event in the event queue.
 
@@ -405,7 +409,7 @@ class SCGIConnection:
         else:
             return None
 
-    def send(self, event: Event) -> bytes | None:
+    def send(self: SCGIConnection, event: Event) -> bytes | None:
         """
         Send an event to the peer.
 
@@ -435,7 +439,7 @@ class SCGIConnection:
                 f"Event {type(event)} prohibited in state {self._tx_state}"
             )
 
-    def _parse_events(self) -> None:
+    def _parse_events(self: SCGIConnection) -> None:
         """Remove bytes from the receive buffer and create events in the event queue."""
         # Throughout this method, we assume that at most one element has been added to
         # the receive buffer; this is safe because this method is called from
@@ -597,7 +601,7 @@ class SCGIConnection:
         }:
             self._report_remote_error("Premature EOF")
 
-    def _report_local_error(self, msg: str) -> LocalProtocolError:
+    def _report_local_error(self: SCGIConnection, msg: str) -> LocalProtocolError:
         """
         Record and raise a local protocol error.
 
@@ -607,7 +611,7 @@ class SCGIConnection:
         self._report_error(LocalProtocolError, msg)
         return LocalProtocolError(msg)
 
-    def _report_remote_error(self, msg: str) -> None:
+    def _report_remote_error(self: SCGIConnection, msg: str) -> None:
         """
         Record a remote protocol error.
 
@@ -618,7 +622,9 @@ class SCGIConnection:
         """
         self._report_error(RemoteProtocolError, msg)
 
-    def _report_error(self, error_class: type[ProtocolError], msg: str) -> None:
+    def _report_error(
+        self: SCGIConnection, error_class: type[ProtocolError], msg: str
+    ) -> None:
         """
         Record an error for later reporting.
 
