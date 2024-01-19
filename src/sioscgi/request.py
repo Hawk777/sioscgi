@@ -210,16 +210,6 @@ class BadContentLengthError(HeadersContentError):
         super().__init__(f"Invalid CONTENT_LENGTH {value}, expected a whole number")
 
 
-class RemoteBodyOverlongError(Error):
-    """Raised when the remote peer sends more than CONTENT_LENGTH body bytes."""
-
-    __slots__ = ()
-
-    def __init__(self: RemoteBodyOverlongError) -> None:
-        """Construct a new RemoteBodyOverlongError."""
-        super().__init__("Request body longer than CONTENT_LENGTH")
-
-
 class RemotePrematureEOFError(Error):
     """Raised when the remote peer closes the connection before it should have."""
 
@@ -602,21 +592,23 @@ class SCGIReader:
                 self._buffer_length,
                 self._body_remaining,
             )
-            if self._buffer_length <= self._body_remaining:
-                for chunk in self._buffer:
-                    self._event_queue.append(Body(chunk))
-                self._body_remaining -= self._buffer_length
-                self._buffer.clear()
-                self._buffer_length = 0
-                if self._body_remaining == 0:
-                    self._event_queue.append(End())
-                    self._state = State.DONE
-            else:
-                self._save_and_raise_error(RemoteBodyOverlongError)
+            while 0 < self._buffer_length <= self._body_remaining:
+                chunk = self._buffer.popleft()
+                self._event_queue.append(Body(chunk))
+                self._body_remaining -= len(chunk)
+                self._buffer_length -= len(chunk)
+            if 0 < self._body_remaining < self._buffer_length:
+                chunk = self._buffer.popleft()
+                self._event_queue.append(Body(chunk[: self._body_remaining]))
+                self._body_remaining = 0
+                self._buffer_length -= len(chunk)
+            if self._body_remaining == 0:
+                self._event_queue.append(End())
+                self._state = State.DONE
         if self._state is State.DONE:
             logger.debug("In RX_DONE")
-            if self._buffer_length:
-                self._save_and_raise_error(RemoteBodyOverlongError)
+            self._buffer.clear()
+            self._buffer_length = 0
         if self._eof and self._state in {
             State.HEADER_LENGTH,
             State.HEADERS,
