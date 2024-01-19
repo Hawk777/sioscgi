@@ -293,6 +293,8 @@ class SCGIWriter:
         Send an event to the peer.
 
         :param event: The event to send.
+        :return: The bytes to send over the socket to implement this event, or None to
+            close the socket.
         :raises Error: If the event is not acceptable right now.
         """
         logging.getLogger(__name__).debug("Sending %s", type(event))
