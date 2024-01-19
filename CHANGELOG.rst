@@ -1,3 +1,12 @@
+Changes in 5.0.0
+================
+
+The ``sioscgi`` module has been split into separate ``sioscgi.request`` and
+``sioscgi.response`` modules with separate types which can be used
+independently.
+
+Extra data after the request body is now ignored rather than raising an error.
+
 Changes in 4.1.0
 ================
 
