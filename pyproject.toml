@@ -12,6 +12,7 @@ enable = [
 ]
 
 disable = [
+	"duplicate-code",
 	"line-too-long",
 	"no-else-raise",
 	"no-else-return",
