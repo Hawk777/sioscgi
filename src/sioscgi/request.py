@@ -557,7 +557,7 @@ class SCGIReader:
                         )
                     env_dict[key] = split_environment[i + 1]
                 # Check for mandatory environment variables.
-                scgi_version = env_dict.get("SCGI", None)
+                scgi_version = env_dict.get("SCGI")
                 if scgi_version is None:
                     self._save_and_raise_error(NoSCGIVariableError)
                 if scgi_version != b"1":
@@ -569,7 +569,7 @@ class SCGIReader:
                 if residue:
                     self._buffer.append(residue)
                     self._buffer_length += len(residue)
-                content_length = env_dict.get("CONTENT_LENGTH", None)
+                content_length = env_dict.get("CONTENT_LENGTH")
                 if content_length is None:
                     self._save_and_raise_error(NoContentLengthError)
                 try:
