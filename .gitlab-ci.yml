@@ -1,17 +1,17 @@
-"mypy":
+mypy:
   image:
-    name: "cytopia/mypy:latest"
+    name: cytopia/mypy:latest
     entrypoint: [""]
   cache:
     paths:
       - .mypy_cache/
-    key: "mypy"
+    key: mypy
   script:
     - mypy --strict src tests
 
-"Ruff":
+Ruff:
   image:
-    name: "pipelinecomponents/ruff:0.10.0"
+    name: pipelinecomponents/ruff:0.10.0
     entrypoint: [""]
   script:
     - ruff format --check --diff
@@ -21,16 +21,16 @@
       codequality:
         - ruff-gitlab.json
 
-"Pylint":
+Pylint:
   image:
-    name: "cytopia/pylint:latest"
+    name: cytopia/pylint:latest
     entrypoint: [""]
   script:
     - python -m pip install --disable-pip-version-check -e .
     - pylint sioscgi tests
 
-"Unit tests":
-  image: "python:3-alpine"
+Unit tests:
+  image: python:3-alpine
   script:
     - pip install --disable-pip-version-check -e .
     - python -m unittest
