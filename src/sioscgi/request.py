@@ -450,7 +450,7 @@ class SCGIReader:
         """
         if self._state is State.ERROR:
             assert self._error is not None  # Implied by State.ERROR
-            raise self._error()  # noqa: RSE102
+            raise self._error()
         if self._event_queue:
             return self._event_queue.popleft()
         return None
@@ -624,4 +624,4 @@ class SCGIReader:
         """
         self._state = State.ERROR
         self._error = error
-        raise error()  # noqa: RSE102
+        raise error()
