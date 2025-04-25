@@ -7,6 +7,7 @@ mypy:
       - .mypy_cache/
     key: mypy
   script:
+    - mypy --version
     - mypy --strict src tests
 
 Ruff:
@@ -14,6 +15,7 @@ Ruff:
     name: pipelinecomponents/ruff:0.10.0
     entrypoint: [""]
   script:
+    - ruff version
     - ruff format --check --diff
     - ruff check --output-format=gitlab > ruff-gitlab.json
   artifacts:
@@ -27,6 +29,7 @@ Pylint:
     entrypoint: [""]
   script:
     - python -m pip install --disable-pip-version-check -e .
+    - pylint --version
     - pylint sioscgi tests
 
 Unit tests:
