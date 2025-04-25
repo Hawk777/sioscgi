@@ -1,8 +1,26 @@
 [build-system]
-requires = [
-	"setuptools >= 40.9.0",
-]
+requires = ["setuptools >= 78.1.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "sioscgi"
+version = "5.0.0"
+description = "A sans-I/O implementation of the SCGI specification."
+readme = "README.rst"
+requires-python = ">=3.10"
+license = "GPL-3.0-only"
+authors = [
+	{ name = "Christopher Head" },
+]
+classifiers = [
+	"Development Status :: 5 - Production/Stable",
+	"Intended Audience :: Developers",
+	"Operating System :: OS Independent",
+	"Programming Language :: Python :: 3",
+	"Topic :: Internet :: WWW/HTTP :: Dynamic Content :: CGI Tools/Libraries",
+	"Topic :: Software Development :: Libraries :: Python Modules",
+]
+urls = { Repository = "https://gitlab.com/Hawk777/sioscgi.git" }
 
 [tool.pylint.messages_control]
 enable = [
@@ -39,3 +57,6 @@ ignore = [
 select = ["ALL"]
 src = ["src"]
 target-version = "py310"
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
