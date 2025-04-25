@@ -12,7 +12,7 @@ mypy:
 
 Ruff:
   image:
-    name: pipelinecomponents/ruff:0.10.0
+    name: pipelinecomponents/ruff:0.30.0
     entrypoint: [""]
   script:
     - ruff version
