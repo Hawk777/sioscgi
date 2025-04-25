@@ -313,18 +313,10 @@ class SCGIReader:
     """
 
     __slots__ = {
-        "_state": """
-            The state of the state machine.
+        "_body_remaining": """
+            The amount of request body not yet converted into events in _event_queue.
 
-            This is the effective state after consuming all events in _event_queue but
-            before considering any bytes in _buffer.
-            """,
-        "_error": """A callable which, when called, raises the detected error.""",
-        "_event_queue": """
-            The decoded but not yet returned events.
-
-            These are events that have been received (via receive_data) but not yet
-            returned by next_event.
+            This includes both bytes in _buffer and bytes not yet received.
             """,
         "_buffer": """
             The received but not yet decoded bytes.
@@ -345,24 +337,32 @@ class SCGIReader:
             temporarily until complete events are removed. Incomplete events must always
             be within this limit.
             """,
-        "_eof": """Whether an EOF has been reported via call to receive_bytes.""",
         "_env_length": """The length of the headers block, once known.""",
-        "_body_remaining": """
-            The amount of request body not yet converted into events in _event_queue.
+        "_eof": """Whether an EOF has been reported via call to receive_bytes.""",
+        "_error": """A callable which, when called, raises the detected error.""",
+        "_event_queue": """
+            The decoded but not yet returned events.
 
-            This includes both bytes in _buffer and bytes not yet received.
+            These are events that have been received (via receive_data) but not yet
+            returned by next_event.
+            """,
+        "_state": """
+            The state of the state machine.
+
+            This is the effective state after consuming all events in _event_queue but
+            before considering any bytes in _buffer.
             """,
     }
 
-    _state: State
-    _error: Callable[[], Error] | None
-    _event_queue: collections.deque[Event]
+    _body_remaining: int
     _buffer: collections.deque[bytes]
     _buffer_length: int
     _buffer_limit: int
-    _eof: bool
     _env_length: int
-    _body_remaining: int
+    _eof: bool
+    _error: Callable[[], Error] | None
+    _event_queue: collections.deque[Event]
+    _state: State
 
     _MAX_NETSTRING_LENGTH_LENGTH: ClassVar[int] = 15
     """
@@ -381,15 +381,15 @@ class SCGIReader:
             size of request environment.
         """
         super().__init__()
-        self._state = State.HEADER_LENGTH
-        self._error = None
-        self._event_queue = collections.deque()
+        self._body_remaining = 0
         self._buffer = collections.deque()
         self._buffer_length = 0
         self._buffer_limit = rx_buffer_limit
-        self._eof = False
         self._env_length = 0
-        self._body_remaining = 0
+        self._eof = False
+        self._error = None
+        self._event_queue = collections.deque()
+        self._state = State.HEADER_LENGTH
 
     @property
     def state(self: SCGIReader) -> State:

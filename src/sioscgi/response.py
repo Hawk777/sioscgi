@@ -101,16 +101,16 @@ class Headers(Event):
     """
 
     __slots__ = {
-        "status": """The HTTP status code and string.""",
         "content_type": """The value of the Content-Type header.""",
         "location": """The value of the Location header.""",
         "other_headers": """The HTTP headers, except Content-Type and Location.""",
+        "status": """The HTTP status code and string.""",
     }
 
-    status: str | None
     content_type: str | None
     location: str | None
     other_headers: wsgiref.headers.Headers
+    status: str | None
 
     def __init__(
         self: Headers, status: str | None, headers: list[tuple[str, str]]
@@ -123,12 +123,12 @@ class Headers(Event):
         :param headers: A list of (name, value) tuples of HTTP headers.
         :raises Error: If the application provided invalid data.
         """
-        self.status = status
         self.other_headers = wsgiref.headers.Headers(list(headers))
         self.content_type = self.other_headers["Content-Type"]
         del self.other_headers["Content-Type"]
         self.location = self.other_headers["Location"]
         del self.other_headers["Location"]
+        self.status = status
         self._sanity_check()
 
     def encode(self: Headers) -> bytes:
