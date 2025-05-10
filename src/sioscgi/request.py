@@ -578,7 +578,10 @@ class SCGIReader:
                     self._body_remaining = -1
                 if self._body_remaining < 0:
                     self._save_and_raise_error(
-                        functools.partial(BadContentLengthError, content_length)
+                        functools.partial(
+                            BadContentLengthError,
+                            content_length.decode("UTF-8", "replace"),
+                        )
                     )
                 self._event_queue.append(Headers(env_dict))
                 logger.debug(
