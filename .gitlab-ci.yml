@@ -1,39 +1,39 @@
-mypy:
-  image:
-    name: cytopia/mypy:latest
-    entrypoint: [""]
-  cache:
+variables:
+  UV_CACHE_DIR: .uv-cache
+  UV_LINK_MODE: copy
+
+default:
+  image: ghcr.io/astral-sh/uv:0.7-python3.10-bookworm-slim
+  cache: &uv_cache
+    key:
+      prefix: uv
+      files:
+        - uv.lock
     paths:
-      - .mypy_cache/
-    key: mypy
+      - $UV_CACHE_DIR
+
+mypy:
+  cache:
+    - <<: *uv_cache
+    - key: mypy
+      paths:
+        - .mypy_cache/
   script:
-    - mypy --version
-    - mypy --strict src tests
+    - uv run mypy --strict src tests
 
 Ruff:
-  image:
-    name: pipelinecomponents/ruff:0.30.0
-    entrypoint: [""]
   script:
-    - ruff version
-    - ruff format --check --diff
-    - ruff check --output-format=gitlab > ruff-gitlab.json
+    - uv run ruff format --check --diff
+    - uv run ruff check --output-format=gitlab > ruff-gitlab.json
   artifacts:
     reports:
       codequality:
         - ruff-gitlab.json
 
 Pylint:
-  image:
-    name: cytopia/pylint:latest
-    entrypoint: [""]
   script:
-    - python -m pip install --disable-pip-version-check -e .
-    - pylint --version
-    - pylint sioscgi tests
+    - uv run pylint sioscgi tests
 
 Unit tests:
-  image: python:3-alpine
   script:
-    - pip install --disable-pip-version-check -e .
-    - python -m unittest
+    - uv run python -m unittest
