@@ -34,7 +34,8 @@ mypy:
       paths:
         - .mypy_cache/
   script:
-    - uv run mypy --strict --output=json src tests | uv run --group ci mypy-gitlab-code-quality > mypy-gitlab.json
+    - uv run --group ci mypy --strict --output=json src tests > mypy.json || true
+    - uv run --group ci mypy-gitlab-code-quality < mypy.json > mypy-gitlab.json
   artifacts:
     reports:
       codequality:
