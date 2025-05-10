@@ -32,7 +32,11 @@ Ruff:
 
 Pylint:
   script:
-    - uv run pylint sioscgi tests
+    - uv run --group ci pylint --output=pylint-gitlab.json --load-plugins=pylint_gitlab --output-format=gitlab-codeclimate sioscgi tests
+  artifacts:
+    reports:
+      codequality:
+        - pylint-gitlab.json
 
 Unit tests:
   script:
