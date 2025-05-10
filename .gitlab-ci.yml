@@ -12,7 +12,19 @@ default:
     paths:
       - $UV_CACHE_DIR
 
+Package:
+  stage: build
+  needs: []
+  script:
+    - uv build
+  artifacts:
+    paths:
+      - dist/*
+    exclude:
+      - dist/.gitignore
+
 mypy:
+  needs: []
   cache:
     - <<: *uv_cache
     - key: mypy
@@ -26,6 +38,7 @@ mypy:
         - mypy-gitlab.json
 
 Ruff:
+  needs: []
   script:
     - uv run ruff format --check --diff
     - uv run ruff check --output-format=gitlab > ruff-gitlab.json
@@ -35,6 +48,7 @@ Ruff:
         - ruff-gitlab.json
 
 Pylint:
+  needs: []
   script:
     - uv run --group ci pylint --output=pylint-gitlab.json --load-plugins=pylint_gitlab --output-format=gitlab-codeclimate sioscgi tests
   artifacts:
@@ -43,5 +57,6 @@ Pylint:
         - pylint-gitlab.json
 
 Unit tests:
+  needs: []
   script:
     - uv run python -m unittest
