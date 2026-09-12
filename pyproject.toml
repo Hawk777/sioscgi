@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling >= 1.14.1"]
-build-backend = "hatchling.build"
+requires = ["uv_build ~= 0.12.3"]
+build-backend = "uv_build"
 
 [dependency-groups]
 ci = [
@@ -33,14 +33,6 @@ classifiers = [
 	"Topic :: Software Development :: Libraries :: Python Modules",
 ]
 urls = { Repository = "https://gitlab.com/Hawk777/sioscgi.git" }
-
-[tool.hatch.build.targets.sdist]
-exclude = [
-	"/.gitlab-ci.yml",
-	"/.python-version",
-	"/.uv-cache",
-	"/uv.lock",
-]
 
 [tool.pylint.messages_control]
 enable = [
@@ -80,3 +72,6 @@ ignore = [
 	"TC003", # typing-only-standard-library-import
 ]
 select = ["ALL"]
+
+[tool.uv.build-backend]
+source-include = ["CHANGELOG.rst", "tests/**"]
