@@ -10,7 +10,7 @@ ci = [
 dev = [
 	"mypy ~= 1.15.0",
 	"pylint ~= 3.3.7",
-	"ruff ~= 0.11.9",
+	"ruff ~= 0.16.7",
 ]
 
 [project]
@@ -70,6 +70,7 @@ allowed-confusables = ["’"]
 ignore = [
 	"C901", # complex-structure
 	"COM812", # missing-trailing-comma
+	"CPY001", # missing-copyright-notice
 	"D203", # one-blank-line-before-class
 	"D212", # multi-line-summary-first-line
 	"PLR09", # too-many-<foo>
