@@ -40,7 +40,7 @@ class HeaderHopByHopError(Error):
 
     __slots__ = ()
 
-    def __init__(self: HeaderHopByHopError, name: str) -> None:
+    def __init__(self, name: str) -> None:
         """
         Construct a new HeaderHopByHopError.
 
@@ -54,7 +54,7 @@ class HeaderNotISO88591Error(Error):
 
     __slots__ = ()
 
-    def __init__(self: HeaderNotISO88591Error) -> None:
+    def __init__(self) -> None:
         """Construct a new HeaderNotISO88591Error."""
         super().__init__("A response header is not ISO-8859-1-encodable")
 
@@ -64,7 +64,7 @@ class NonDocumentHeadersError(Error):
 
     __slots__ = ()
 
-    def __init__(self: NonDocumentHeadersError) -> None:
+    def __init__(self) -> None:
         """Construct a new NonDocumentHeadersError."""
         super().__init__(
             "Non-document responses must contain a Location header and no others",
@@ -76,7 +76,7 @@ class BadEventInStateError(Error):
 
     __slots__ = ()
 
-    def __init__(self: BadEventInStateError, event: type[Event], state: State) -> None:
+    def __init__(self, event: type[Event], state: State) -> None:
         """
         Construct a new BadEventInStateError.
 
@@ -112,11 +112,7 @@ class Headers(Event):
     other_headers: wsgiref.headers.Headers
     status: str | None
 
-    def __init__(
-        self: Headers,
-        status: str | None,
-        headers: list[tuple[str, str]],
-    ) -> None:
+    def __init__(self, status: str | None, headers: list[tuple[str, str]]) -> None:
         """
         Construct a Headers.
 
@@ -133,7 +129,7 @@ class Headers(Event):
         self.status = status
         self._sanity_check()
 
-    def encode(self: Headers) -> bytes:
+    def encode(self) -> bytes:
         """Convert this event into its encoding as raw bytes."""
         if self.status is None:
             # This is a local redirect or client redirect without document, which should
@@ -166,18 +162,18 @@ class Headers(Event):
         )
 
     @property
-    def succeeding_state(self: Headers) -> State:
+    def succeeding_state(self) -> State:
         """Return the state the transmit half will be in after sending these headers."""
         return State.BODY if self.status is not None else State.NO_BODY
 
-    def __repr__(self: Headers) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the response headers."""
         return (
             f"Headers(status={self.status}, content_type={self.content_type}, "
             f"location={self.location}, other_headers={self.other_headers!r})"
         )
 
-    def _sanity_check(self: Headers) -> None:
+    def _sanity_check(self) -> None:
         """
         Perform sanity checks to verify that the headers are consistent.
 
@@ -205,7 +201,7 @@ class Headers(Event):
         if self.status is None:
             self._sanity_check_without_document()
 
-    def _sanity_check_without_document(self: Headers) -> None:
+    def _sanity_check_without_document(self) -> None:
         """
         Perform sanity checks specific to responses without bodies.
 
@@ -218,7 +214,7 @@ class Headers(Event):
             raise NonDocumentHeadersError
 
     @property
-    def _content_type_encoded(self: Headers) -> bytes:
+    def _content_type_encoded(self) -> bytes:
         """
         Return the encoded form of the Content-Type header.
 
@@ -239,7 +235,7 @@ class Body(Event):
 
     data: bytes
 
-    def __init__(self: Body, data: bytes) -> None:
+    def __init__(self, data: bytes) -> None:
         """
         Construct a Body.
 
@@ -247,7 +243,7 @@ class Body(Event):
         """
         self.data = data
 
-    def __repr__(self: Body) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the body data."""
         return f"Body({self.data!r})"
 
@@ -261,7 +257,7 @@ class End(Event):
 
     __slots__ = ()
 
-    def __repr__(self: End) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the end marker."""
         return "End()"
 
@@ -280,17 +276,17 @@ class SCGIWriter:
 
     _state: State
 
-    def __init__(self: SCGIWriter) -> None:
+    def __init__(self) -> None:
         """Construct a new SCGIWriter."""
         super().__init__()
         self._state = State.HEADERS
 
     @property
-    def state(self: SCGIWriter) -> State:
+    def state(self) -> State:
         """The state the transmit half of the connection is currently in."""
         return self._state
 
-    def send(self: SCGIWriter, event: Event) -> bytes | None:
+    def send(self, event: Event) -> bytes | None:
         """
         Send an event to the peer.
 

@@ -69,7 +69,7 @@ class BadNetstringLengthError(NetstringError):
 
     __slots__ = ()
 
-    def __init__(self: BadNetstringLengthError) -> None:
+    def __init__(self) -> None:
         """Construct a new BadNetstringLengthError."""
         super().__init__("Invalid netstring length prefix")
 
@@ -79,7 +79,7 @@ class BadNetstringTerminatorError(NetstringError):
 
     __slots__ = ()
 
-    def __init__(self: BadNetstringTerminatorError) -> None:
+    def __init__(self) -> None:
         """Construct a new BadNetstringTerminatorError."""
         super().__init__("Invalid end-of-environment character")
 
@@ -99,7 +99,7 @@ class HeadersNotNULTerminatedError(HeadersStructuralError):
 
     __slots__ = ()
 
-    def __init__(self: HeadersNotNULTerminatedError) -> None:
+    def __init__(self) -> None:
         """Construct a new HeadersNotNULTerminatedError."""
         super().__init__("Environment block not NUL-terminated")
 
@@ -109,7 +109,7 @@ class HeadersOddStringCountError(HeadersStructuralError):
 
     __slots__ = ()
 
-    def __init__(self: HeadersOddStringCountError) -> None:
+    def __init__(self) -> None:
         """Construct a new HeadersOddStringCountError."""
         super().__init__("Environment block missing final value")
 
@@ -119,7 +119,7 @@ class HeaderNotISO88591Error(HeadersStructuralError):
 
     __slots__ = ()
 
-    def __init__(self: HeaderNotISO88591Error, name: bytes) -> None:
+    def __init__(self, name: bytes) -> None:
         """
         Construct a new HeaderNotISO88591Error.
 
@@ -133,7 +133,7 @@ class HeaderEmptyError(HeadersStructuralError):
 
     __slots__ = ()
 
-    def __init__(self: HeaderEmptyError) -> None:
+    def __init__(self) -> None:
         """Construct a new HeaderEmptyError."""
         super().__init__("Environment variable with empty name")
 
@@ -143,7 +143,7 @@ class DuplicateHeaderError(HeadersStructuralError):
 
     __slots__ = ()
 
-    def __init__(self: DuplicateHeaderError, name: str) -> None:
+    def __init__(self, name: str) -> None:
         """
         Construct a new DuplicateHeaderError.
 
@@ -167,7 +167,7 @@ class NoSCGIVariableError(HeadersContentError):
 
     __slots__ = ()
 
-    def __init__(self: NoSCGIVariableError) -> None:
+    def __init__(self) -> None:
         """Construct a new NoSCGIVariableError."""
         super().__init__("Mandatory variable SCGI missing")
 
@@ -177,7 +177,7 @@ class BadSCGIVersionError(HeadersContentError):
 
     __slots__ = ()
 
-    def __init__(self: BadSCGIVersionError, version: bytes) -> None:
+    def __init__(self, version: bytes) -> None:
         """
         Construct a new BadSCGIVersionError.
 
@@ -191,7 +191,7 @@ class NoContentLengthError(HeadersContentError):
 
     __slots__ = ()
 
-    def __init__(self: NoContentLengthError) -> None:
+    def __init__(self) -> None:
         """Construct a new NoContentLengthError."""
         super().__init__("Mandatory variable CONTENT_LENGTH missing")
 
@@ -201,7 +201,7 @@ class BadContentLengthError(HeadersContentError):
 
     __slots__ = ()
 
-    def __init__(self: BadContentLengthError, value: str) -> None:
+    def __init__(self, value: str) -> None:
         """
         Construct a new BadContentLengthError.
 
@@ -215,7 +215,7 @@ class RemotePrematureEOFError(Error):
 
     __slots__ = ()
 
-    def __init__(self: RemotePrematureEOFError) -> None:
+    def __init__(self) -> None:
         """Construct a new RemotePrematureEOFError."""
         super().__init__("Premature EOF")
 
@@ -225,7 +225,7 @@ class ReceiveAfterEOFError(Error):
 
     __slots__ = ()
 
-    def __init__(self: ReceiveAfterEOFError) -> None:
+    def __init__(self) -> None:
         """Construct a new ReceiveAfterEOFError."""
         super().__init__("Data received after EOF")
 
@@ -245,7 +245,7 @@ class Headers(Event):
 
     environment: dict[str, bytes]
 
-    def __init__(self: Headers, environment: dict[str, bytes]) -> None:
+    def __init__(self, environment: dict[str, bytes]) -> None:
         """
         Construct a new Headers.
 
@@ -253,7 +253,7 @@ class Headers(Event):
         """
         self.environment = environment
 
-    def __repr__(self: Headers) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the environment."""
         return f"Headers({self.environment})"
 
@@ -275,7 +275,7 @@ class Body(Event):
 
     data: bytes
 
-    def __init__(self: Body, data: bytes) -> None:
+    def __init__(self, data: bytes) -> None:
         """
         Construct a new Body.
 
@@ -283,7 +283,7 @@ class Body(Event):
         """
         self.data = data
 
-    def __repr__(self: Body) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the body data."""
         return f"Body({self.data!r})"
 
@@ -299,7 +299,7 @@ class End(Event):
 
     __slots__ = ()
 
-    def __repr__(self: End) -> str:
+    def __repr__(self) -> str:
         """Return a representation of the end marker."""
         return "End()"
 
@@ -372,7 +372,7 @@ class SCGIReader:
     almost a TiB long or more, which is unreasonable.
     """
 
-    def __init__(self: SCGIReader, rx_buffer_limit: int = 65536) -> None:
+    def __init__(self, rx_buffer_limit: int = 65536) -> None:
         """
         Construct a new SCGIReader.
 
@@ -392,7 +392,7 @@ class SCGIReader:
         self._state = State.HEADER_LENGTH
 
     @property
-    def state(self: SCGIReader) -> State:
+    def state(self) -> State:
         """
         The state the state machine is currently in.
 
@@ -402,7 +402,7 @@ class SCGIReader:
         """
         return self._state
 
-    def receive_data(self: SCGIReader, data: bytes) -> None:
+    def receive_data(self, data: bytes) -> None:
         """
         Provide data received over the network to the SCGI reader.
 
@@ -436,7 +436,7 @@ class SCGIReader:
             # wrong method.
             assert self._error is not None
 
-    def next_event(self: SCGIReader) -> Event | None:
+    def next_event(self) -> Event | None:
         """
         Return the next event in the event queue.
 
@@ -456,7 +456,7 @@ class SCGIReader:
             return self._event_queue.popleft()
         return None
 
-    def _parse_events(self: SCGIReader) -> None:
+    def _parse_events(self) -> None:
         """
         Remove bytes from the receive buffer and create events in the event queue.
 
@@ -621,7 +621,7 @@ class SCGIReader:
         }:
             self._save_and_raise_error(RemotePrematureEOFError)
 
-    def _save_and_raise_error(self: SCGIReader, error: Callable[[], Error]) -> NoReturn:
+    def _save_and_raise_error(self, error: Callable[[], Error]) -> NoReturn:
         """
         Record and immediately raise a protocol error.
 
