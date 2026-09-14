@@ -79,9 +79,9 @@ class TestGood(unittest.TestCase):
                     to_send = uut.send(sioscgi.response.Body(response_body))
                     assert to_send is not None
                     acc += to_send
-                self.assertEqual(acc, expected_tx)
+                assert acc == expected_tx
                 eof = uut.send(sioscgi.response.End())
-                self.assertIsNone(eof)
+                assert eof is None
 
 
 class TestBadResponseHeaders(unittest.TestCase):
@@ -160,7 +160,7 @@ class TestBadResponseSequence(unittest.TestCase):
     def test_response_body_before_headers(self: TestBadResponseSequence) -> None:
         """Test trying to send some response body before sending the headers."""
         uut = sioscgi.response.SCGIWriter()
-        self.assertIs(uut.state, sioscgi.response.State.HEADERS)
+        assert uut.state is sioscgi.response.State.HEADERS
         tx_body = sioscgi.response.Body(b"abcd")
         with self.assertRaises(sioscgi.response.BadEventInStateError):
             uut.send(tx_body)
@@ -168,6 +168,6 @@ class TestBadResponseSequence(unittest.TestCase):
     def test_response_end_before_headers(self: TestBadResponseSequence) -> None:
         """Test trying to send the response end marker before sending the headers."""
         uut = sioscgi.response.SCGIWriter()
-        self.assertIs(uut.state, sioscgi.response.State.HEADERS)
+        assert uut.state is sioscgi.response.State.HEADERS
         with self.assertRaises(sioscgi.response.BadEventInStateError):
             uut.send(sioscgi.response.End())

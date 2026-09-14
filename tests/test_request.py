@@ -43,17 +43,17 @@ class TestGood(unittest.TestCase):
         uut = sioscgi.request.SCGIReader()
         uut.receive_data(self.RX_DATA)
         uut.receive_data(b"")
-        self.assertIs(uut.state, sioscgi.request.State.DONE)
+        assert uut.state is sioscgi.request.State.DONE
         evt = uut.next_event()
         assert isinstance(evt, sioscgi.request.Headers)
-        self.assertEqual(evt.environment, self.RX_HEADERS)
+        assert evt.environment == self.RX_HEADERS
         evt = uut.next_event()
         assert isinstance(evt, sioscgi.request.Body)
-        self.assertEqual(evt.data, self.RX_BODY)
+        assert evt.data == self.RX_BODY
         evt = uut.next_event()
-        self.assertIsInstance(evt, sioscgi.request.End)
+        assert isinstance(evt, sioscgi.request.End)
         evt = uut.next_event()
-        self.assertIsNone(evt)
+        assert evt is None
 
     def test_tiny_buffer(self: TestGood) -> None:
         """
@@ -66,18 +66,18 @@ class TestGood(unittest.TestCase):
         for i in self.RX_DATA:
             uut.receive_data(bytes((i,)))
         uut.receive_data(b"")
-        self.assertIs(uut.state, sioscgi.request.State.DONE)
+        assert uut.state is sioscgi.request.State.DONE
         evt = uut.next_event()
         assert isinstance(evt, sioscgi.request.Headers)
-        self.assertEqual(evt.environment, self.RX_HEADERS)
+        assert evt.environment == self.RX_HEADERS
         for i in self.RX_BODY:
             evt = uut.next_event()
             assert isinstance(evt, sioscgi.request.Body)
-            self.assertEqual(evt.data, bytes((i,)))
+            assert evt.data == bytes((i,))
         evt = uut.next_event()
-        self.assertIsInstance(evt, sioscgi.request.End)
+        assert isinstance(evt, sioscgi.request.End)
         evt = uut.next_event()
-        self.assertIsNone(evt)
+        assert evt is None
 
 
 class TestBadData(unittest.TestCase):
