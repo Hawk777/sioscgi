@@ -240,7 +240,7 @@ class Headers(Event):
     """Reports that a request has started and carries the environment data."""
 
     __slots__ = {
-        "environment": """The environment variables, as a dict from name to value""",
+        "environment": "The environment variables, as a dict from name to value.",
     }
 
     environment: dict[str, bytes]
@@ -270,7 +270,7 @@ class Body(Event):
     """
 
     __slots__ = {
-        "data": """The body data chunk.""",
+        "data": "The body data chunk.",
     }
 
     data: bytes
@@ -329,7 +329,7 @@ class SCGIReader:
             more complete events, plus possible extra residue at the end, until the
             completed events are parsed and removed.
             """,
-        "_buffer_length": """The total number of bytes in _buffer.""",
+        "_buffer_length": "The total number of bytes in _buffer.",
         "_buffer_limit": """
             The maximum size of _buffer in between calls to receive_bytes.
 
@@ -337,9 +337,9 @@ class SCGIReader:
             temporarily until complete events are removed. Incomplete events must always
             be within this limit.
             """,
-        "_env_length": """The length of the headers block, once known.""",
-        "_eof": """Whether an EOF has been reported via call to receive_bytes.""",
-        "_error": """A callable which, when called, raises the detected error.""",
+        "_env_length": "The length of the headers block, once known.",
+        "_eof": "Whether an EOF has been reported via call to receive_bytes.",
+        "_error": "A callable which, when called, raises the detected error.",
         "_event_queue": """
             The decoded but not yet returned events.
 

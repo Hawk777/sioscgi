@@ -101,10 +101,10 @@ class Headers(Event):
     """
 
     __slots__ = {
-        "content_type": """The value of the Content-Type header.""",
-        "location": """The value of the Location header.""",
-        "other_headers": """The HTTP headers, except Content-Type and Location.""",
-        "status": """The HTTP status code and string.""",
+        "content_type": "The value of the Content-Type header.",
+        "location": "The value of the Location header.",
+        "other_headers": "The HTTP headers, except Content-Type and Location.",
+        "status": "The HTTP status code and string.",
     }
 
     content_type: str | None
@@ -232,7 +232,7 @@ class Body(Event):
     """Sends a chunk of response body to the SCGI client."""
 
     __slots__ = {
-        "data": """The body data chunk.""",
+        "data": "The body data chunk.",
     }
 
     data: bytes
@@ -273,7 +273,7 @@ class SCGIWriter:
     """
 
     __slots__ = {
-        "_state": """The state of the state machine.""",
+        "_state": "The state of the state machine.",
     }
 
     _state: State
