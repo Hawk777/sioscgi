@@ -44,10 +44,7 @@ enable = [
 disable = [
 	"duplicate-code",
 	"too-few-public-methods",
-	"too-many-branches",
 	"too-many-instance-attributes",
-	"too-many-locals",
-	"too-many-statements",
 ]
 
 [tool.pytest]
@@ -62,7 +59,6 @@ target-version = "py312"
 [tool.ruff.lint]
 allowed-confusables = ["’"]
 ignore = [
-	"C901", # complex-structure
 	"COM812", # missing-trailing-comma
 	"CPY001", # missing-copyright-notice
 	"D203", # one-blank-line-before-class
