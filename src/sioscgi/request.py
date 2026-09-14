@@ -497,46 +497,46 @@ class SCGIReader:
 
         :raises Error: If the remote peer violated SCGI protocol rules.
         """
-        if self._buffer:
-            # The length-of-environment integer ends with a colon.
-            index = self._buffer[-1].find(b":")
-            if index < 0 and self._buffer_length > self._MAX_NETSTRING_LENGTH_LENGTH:
+        if not self._buffer:
+            return
+        # The length-of-environment integer ends with a colon.
+        index = self._buffer[-1].find(b":")
+        if index < 0 and self._buffer_length > self._MAX_NETSTRING_LENGTH_LENGTH:
+            self._save_and_raise_error(BadNetstringLengthError)
+        if index >= 0:
+            logger = logging.getLogger(__name__)
+            logger.debug("Found : at %d", index)
+            # We have the full length-of-environment integer and its terminating colon.
+            # Split up received data into the length-of-environment integer, the colon
+            # (which we discard), and any bytes following the colon (residue).
+            residue = self._buffer[-1][index + 1 :]
+            if index == 0:
+                self._buffer.pop()
+            else:
+                self._buffer[-1] = self._buffer[-1][:index]
+            consumed = b"".join(self._buffer)
+            self._buffer.clear()
+            self._buffer_length = 0
+            # Parse the length-of-environment integer.
+            try:
+                self._env_length = int(consumed.decode("ASCII"))
+            except ValueError:
                 self._save_and_raise_error(BadNetstringLengthError)
-            if index >= 0:
-                logger = logging.getLogger(__name__)
-                logger.debug("Found : at %d", index)
-                # We have the full length-of-environment integer and its terminating
-                # colon. Split up received data into the length-of-environment integer,
-                # the colon (which we discard), and any bytes following the colon
-                # (residue).
-                residue = self._buffer[-1][index + 1 :]
-                if index == 0:
-                    self._buffer.pop()
-                else:
-                    self._buffer[-1] = self._buffer[-1][:index]
-                consumed = b"".join(self._buffer)
-                self._buffer.clear()
-                self._buffer_length = 0
-                # Parse the length-of-environment integer.
-                try:
-                    self._env_length = int(consumed.decode("ASCII"))
-                except ValueError:
-                    self._save_and_raise_error(BadNetstringLengthError)
-                # Sanity check the length-of-environment integer.
-                if self._env_length <= 0:
-                    self._save_and_raise_error(BadNetstringLengthError)
-                if self._env_length > self._buffer_limit:
-                    self._save_and_raise_error(BadNetstringLengthError)
-                # Advance the state machine, keeping any residual bytes.
-                self._state = State.HEADERS
-                if residue:
-                    self._buffer.append(residue)
-                    self._buffer_length += len(residue)
-                logger.debug(
-                    "Length of headers is %d, residue is %d bytes",
-                    self._env_length,
-                    len(residue),
-                )
+            # Sanity check the length-of-environment integer.
+            if self._env_length <= 0:
+                self._save_and_raise_error(BadNetstringLengthError)
+            if self._env_length > self._buffer_limit:
+                self._save_and_raise_error(BadNetstringLengthError)
+            # Advance the state machine, keeping any residual bytes.
+            self._state = State.HEADERS
+            if residue:
+                self._buffer.append(residue)
+                self._buffer_length += len(residue)
+            logger.debug(
+                "Length of headers is %d, residue is %d bytes",
+                self._env_length,
+                len(residue),
+            )
 
     def _parse_events_in_headers(self) -> None:
         """
@@ -546,86 +546,84 @@ class SCGIReader:
 
         :raises Error: If the remote peer violated SCGI protocol rules.
         """
-        if self._buffer_length > self._env_length:
-            logger = logging.getLogger(__name__)
-            # Split the receive buffer into the environment of the designated length,
-            # the comma, and any bytes following the comma (residue).
-            logger.debug("Got all headers")
-            last_chunk_start_pos = self._buffer_length - len(self._buffer[-1])
-            assert last_chunk_start_pos <= self._env_length
-            comma_pos = self._env_length - last_chunk_start_pos
-            comma = self._buffer[-1][comma_pos]
-            residue = self._buffer[-1][comma_pos + 1 :]
-            if last_chunk_start_pos == self._env_length:
-                self._buffer.pop()
-            else:
-                self._buffer[-1] = self._buffer[-1][:comma_pos]
-            environment = b"".join(self._buffer)
-            self._buffer.clear()
-            self._buffer_length = 0
-            # Check that the comma is a comma.
-            if comma != ord(","):
-                self._save_and_raise_error(BadNetstringTerminatorError)
-            # Check that the last byte of the environment block is a NUL
-            if environment[-1] != 0x00:
-                self._save_and_raise_error(HeadersNotNULTerminatedError)
-            # Split the environment block into NUL-terminated chunks.
-            split_environment = environment[:-1].split(b"\x00")
-            # Check that there are an even number of parts.
-            if len(split_environment) % 2 == 1:
-                self._save_and_raise_error(HeadersOddStringCountError)
-            # Build the dictionary.
-            env_dict: dict[str, bytes] = {}
-            for i in range(0, len(split_environment), 2):
-                try:
-                    key = split_environment[i].decode("ISO-8859-1")
-                except UnicodeError:
-                    self._save_and_raise_error(
-                        functools.partial(
-                            HeaderNotISO88591Error,
-                            split_environment[i],
-                        ),
-                    )
-                if not key:
-                    self._save_and_raise_error(HeaderEmptyError)
-                if key in env_dict:
-                    self._save_and_raise_error(
-                        functools.partial(DuplicateHeaderError, key),
-                    )
-                env_dict[key] = split_environment[i + 1]
-            # Check for mandatory environment variables.
-            scgi_version = env_dict.get("SCGI")
-            if scgi_version is None:
-                self._save_and_raise_error(NoSCGIVariableError)
-            if scgi_version != b"1":
-                self._save_and_raise_error(
-                    functools.partial(BadSCGIVersionError, scgi_version),
-                )
-            # Advance the state machine, keeping any residual bytes.
-            self._state = State.BODY
-            if residue:
-                self._buffer.append(residue)
-                self._buffer_length += len(residue)
-            content_length = env_dict.get("CONTENT_LENGTH")
-            if content_length is None:
-                self._save_and_raise_error(NoContentLengthError)
+        if self._buffer_length < self._env_length + 1:
+            return
+        logger = logging.getLogger(__name__)
+        # Split the receive buffer into the environment of the designated length, the
+        # comma, and any bytes following the comma (residue).
+        logger.debug("Got all headers")
+        last_chunk_start_pos = self._buffer_length - len(self._buffer[-1])
+        assert last_chunk_start_pos <= self._env_length
+        comma_pos = self._env_length - last_chunk_start_pos
+        comma = self._buffer[-1][comma_pos]
+        residue = self._buffer[-1][comma_pos + 1 :]
+        if last_chunk_start_pos == self._env_length:
+            self._buffer.pop()
+        else:
+            self._buffer[-1] = self._buffer[-1][:comma_pos]
+        environment = b"".join(self._buffer)
+        self._buffer.clear()
+        self._buffer_length = 0
+        # Check that the comma is a comma.
+        if comma != ord(","):
+            self._save_and_raise_error(BadNetstringTerminatorError)
+        # Check that the last byte of the environment block is a NUL
+        if environment[-1] != 0x00:
+            self._save_and_raise_error(HeadersNotNULTerminatedError)
+        # Split the environment block into NUL-terminated chunks.
+        split_environment = environment[:-1].split(b"\x00")
+        # Check that there are an even number of parts.
+        if len(split_environment) % 2 == 1:
+            self._save_and_raise_error(HeadersOddStringCountError)
+        # Build the dictionary.
+        env_dict: dict[str, bytes] = {}
+        for i in range(0, len(split_environment), 2):
             try:
-                self._body_remaining = int(content_length)
-            except ValueError:
-                self._body_remaining = -1
-            if self._body_remaining < 0:
+                key = split_environment[i].decode("ISO-8859-1")
+            except UnicodeError:
                 self._save_and_raise_error(
-                    functools.partial(
-                        BadContentLengthError,
-                        content_length.decode("UTF-8", "replace"),
-                    ),
+                    functools.partial(HeaderNotISO88591Error, split_environment[i]),
                 )
-            self._event_queue.append(Headers(env_dict))
-            logger.debug(
-                "Retrieved %d headers, residue is %d bytes",
-                len(env_dict),
-                len(residue),
+            if not key:
+                self._save_and_raise_error(HeaderEmptyError)
+            if key in env_dict:
+                self._save_and_raise_error(
+                    functools.partial(DuplicateHeaderError, key),
+                )
+            env_dict[key] = split_environment[i + 1]
+        # Check for mandatory environment variables.
+        scgi_version = env_dict.get("SCGI")
+        if scgi_version is None:
+            self._save_and_raise_error(NoSCGIVariableError)
+        if scgi_version != b"1":
+            self._save_and_raise_error(
+                functools.partial(BadSCGIVersionError, scgi_version),
             )
+        # Advance the state machine, keeping any residual bytes.
+        self._state = State.BODY
+        if residue:
+            self._buffer.append(residue)
+            self._buffer_length += len(residue)
+        content_length = env_dict.get("CONTENT_LENGTH")
+        if content_length is None:
+            self._save_and_raise_error(NoContentLengthError)
+        try:
+            self._body_remaining = int(content_length)
+        except ValueError:
+            self._body_remaining = -1
+        if self._body_remaining < 0:
+            self._save_and_raise_error(
+                functools.partial(
+                    BadContentLengthError,
+                    content_length.decode("UTF-8", "replace"),
+                ),
+            )
+        self._event_queue.append(Headers(env_dict))
+        logger.debug(
+            "Retrieved %d headers, residue is %d bytes",
+            len(env_dict),
+            len(residue),
+        )
 
     def _parse_events_in_body(self) -> None:
         """
