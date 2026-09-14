@@ -546,12 +546,55 @@ class SCGIReader:
 
         :raises Error: If the remote peer violated SCGI protocol rules.
         """
-        if self._buffer_length < self._env_length + 1:
+        env_dict = self._parse_environment()
+        if env_dict is None:
             return
-        logger = logging.getLogger(__name__)
+        # Check for mandatory environment variables.
+        scgi_version = env_dict.get("SCGI")
+        if scgi_version is None:
+            self._save_and_raise_error(NoSCGIVariableError)
+        if scgi_version != b"1":
+            self._save_and_raise_error(
+                functools.partial(BadSCGIVersionError, scgi_version),
+            )
+        content_length = env_dict.get("CONTENT_LENGTH")
+        if content_length is None:
+            self._save_and_raise_error(NoContentLengthError)
+        try:
+            self._body_remaining = int(content_length)
+        except ValueError:
+            self._body_remaining = -1
+        if self._body_remaining < 0:
+            self._save_and_raise_error(
+                functools.partial(
+                    BadContentLengthError,
+                    content_length.decode("UTF-8", "replace"),
+                ),
+            )
+        # Advance the state machine.
+        self._state = State.BODY
+        self._event_queue.append(Headers(env_dict))
+        logging.getLogger(__name__).debug(
+            "Retrieved %d headers, residue is %d bytes",
+            len(env_dict),
+            sum(len(i) for i in self._buffer),
+        )
+
+    def _parse_environment(self) -> dict[str, bytes] | None:
+        """
+        Remove bytes from the receive buffer and create an environment dictionary.
+
+        This method is called in the HEADERS state. When returning None, the buffer is
+        unmodified.
+
+        :return: The environment dictionary, or None if the headers are incomplete.
+        :raises Error: If the remote peer violated SCGI protocol rules.
+        """
+        if self._buffer_length < self._env_length + 1:
+            return None
         # Split the receive buffer into the environment of the designated length, the
         # comma, and any bytes following the comma (residue).
-        logger.debug("Got all headers")
+        logging.getLogger(__name__).debug("Got all headers")
         last_chunk_start_pos = self._buffer_length - len(self._buffer[-1])
         assert last_chunk_start_pos <= self._env_length
         comma_pos = self._env_length - last_chunk_start_pos
@@ -563,10 +606,25 @@ class SCGIReader:
             self._buffer[-1] = self._buffer[-1][:comma_pos]
         environment = b"".join(self._buffer)
         self._buffer.clear()
-        self._buffer_length = 0
+        if residue:
+            self._buffer.append(residue)
+            self._buffer_length = len(residue)
+        else:
+            self._buffer_length = 0
         # Check that the comma is a comma.
         if comma != ord(","):
             self._save_and_raise_error(BadNetstringTerminatorError)
+        # Convert the netstring payload to a dictionary.
+        return self._parse_environment_to_dict(environment)
+
+    def _parse_environment_to_dict(self, environment: bytes) -> dict[str, bytes]:
+        """
+        Convert the environment bytes into an environment dictionary.
+
+        :param environment: The environment bytes.
+        :return: The environment dictionary.
+        :raises Error: If the remote peer violated SCGI protocol rules.
+        """
         # Check that the last byte of the environment block is a NUL
         if environment[-1] != 0x00:
             self._save_and_raise_error(HeadersNotNULTerminatedError)
@@ -591,39 +649,7 @@ class SCGIReader:
                     functools.partial(DuplicateHeaderError, key),
                 )
             env_dict[key] = split_environment[i + 1]
-        # Check for mandatory environment variables.
-        scgi_version = env_dict.get("SCGI")
-        if scgi_version is None:
-            self._save_and_raise_error(NoSCGIVariableError)
-        if scgi_version != b"1":
-            self._save_and_raise_error(
-                functools.partial(BadSCGIVersionError, scgi_version),
-            )
-        # Advance the state machine, keeping any residual bytes.
-        self._state = State.BODY
-        if residue:
-            self._buffer.append(residue)
-            self._buffer_length += len(residue)
-        content_length = env_dict.get("CONTENT_LENGTH")
-        if content_length is None:
-            self._save_and_raise_error(NoContentLengthError)
-        try:
-            self._body_remaining = int(content_length)
-        except ValueError:
-            self._body_remaining = -1
-        if self._body_remaining < 0:
-            self._save_and_raise_error(
-                functools.partial(
-                    BadContentLengthError,
-                    content_length.decode("UTF-8", "replace"),
-                ),
-            )
-        self._event_queue.append(Headers(env_dict))
-        logger.debug(
-            "Retrieved %d headers, residue is %d bytes",
-            len(env_dict),
-            len(residue),
-        )
+        return env_dict
 
     def _parse_events_in_body(self) -> None:
         """
