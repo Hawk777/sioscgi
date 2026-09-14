@@ -96,7 +96,7 @@ def test_headers_no_comma() -> None:
         b"REQUEST_METHOD\x00POST\x00"
         b"REQUEST_URI\x00/deepthought\x00"
         b"@"
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )  # Comma replaced with @
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.BadNetstringTerminatorError):
@@ -112,7 +112,7 @@ def test_headers_no_scgi() -> None:
         b"REQUEST_METHOD\x00POST\x00"
         b"REQUEST_URI\x00/deepthought\x00"
         b","
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.NoSCGIVariableError):
@@ -128,7 +128,7 @@ def test_headers_no_content_length() -> None:
         b"REQUEST_METHOD\x00POST\x00"
         b"REQUEST_URI\x00/deepthought\x00"
         b","
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.NoContentLengthError):
@@ -145,7 +145,7 @@ def test_headers_no_nul() -> None:
         b"REQUEST_METHOD\x00POST\x00"
         b"REQUEST_URI\x00/deepthought"
         b","
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.HeadersNotNULTerminatedError):
@@ -166,7 +166,7 @@ def test_headers_odd_number() -> None:
         b"REQUEST_METHOD\x00"
         b"REQUEST_URI\x00/deepthought\x00"
         b","
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.HeadersOddStringCountError):
@@ -187,7 +187,7 @@ def test_headers_wrong_scgi() -> None:
         b"REQUEST_METHOD\x00POST\x00"
         b"REQUEST_URI\x00/deepthought\x00"
         b","
-        b"What is the answer to life?"
+        b"What is the answer to life?",
     )
     uut.receive_data(b"")
     with pytest.raises(sioscgi.request.BadSCGIVersionError):

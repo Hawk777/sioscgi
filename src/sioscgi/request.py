@@ -414,7 +414,8 @@ class SCGIReader:
         if data:
             if self._eof:
                 logging.getLogger(__name__).debug(
-                    "Received %d bytes after EOF", len(data)
+                    "Received %d bytes after EOF",
+                    len(data),
                 )
                 self._save_and_raise_error(ReceiveAfterEOFError)
             if self._state is not State.ERROR:
@@ -546,14 +547,15 @@ class SCGIReader:
                     except UnicodeError:
                         self._save_and_raise_error(
                             functools.partial(
-                                HeaderNotISO88591Error, split_environment[i]
-                            )
+                                HeaderNotISO88591Error,
+                                split_environment[i],
+                            ),
                         )
                     if not key:
                         self._save_and_raise_error(HeaderEmptyError)
                     if key in env_dict:
                         self._save_and_raise_error(
-                            functools.partial(DuplicateHeaderError, key)
+                            functools.partial(DuplicateHeaderError, key),
                         )
                     env_dict[key] = split_environment[i + 1]
                 # Check for mandatory environment variables.
@@ -562,7 +564,7 @@ class SCGIReader:
                     self._save_and_raise_error(NoSCGIVariableError)
                 if scgi_version != b"1":
                     self._save_and_raise_error(
-                        functools.partial(BadSCGIVersionError, scgi_version)
+                        functools.partial(BadSCGIVersionError, scgi_version),
                     )
                 # Advance the state machine, keeping any residual bytes.
                 self._state = State.BODY
@@ -581,7 +583,7 @@ class SCGIReader:
                         functools.partial(
                             BadContentLengthError,
                             content_length.decode("UTF-8", "replace"),
-                        )
+                        ),
                     )
                 self._event_queue.append(Headers(env_dict))
                 logger.debug(

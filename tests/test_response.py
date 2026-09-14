@@ -78,7 +78,8 @@ def test_non_latin1_content_type() -> None:
     """Test rejection of an unencodable Content-Type header value."""
     with pytest.raises(sioscgi.response.HeaderNotISO88591Error):
         sioscgi.response.Headers(
-            "200 OK", [("Content-Type", "text/Ω"), ("Content-Length", "0")]
+            "200 OK",
+            [("Content-Type", "text/Ω"), ("Content-Length", "0")],
         )
 
 

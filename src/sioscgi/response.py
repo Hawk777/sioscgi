@@ -67,7 +67,7 @@ class NonDocumentHeadersError(Error):
     def __init__(self: NonDocumentHeadersError) -> None:
         """Construct a new NonDocumentHeadersError."""
         super().__init__(
-            "Non-document responses must contain a Location header and no others"
+            "Non-document responses must contain a Location header and no others",
         )
 
 
@@ -113,7 +113,9 @@ class Headers(Event):
     status: str | None
 
     def __init__(
-        self: Headers, status: str | None, headers: list[tuple[str, str]]
+        self: Headers,
+        status: str | None,
+        headers: list[tuple[str, str]],
     ) -> None:
         """
         Construct a Headers.
