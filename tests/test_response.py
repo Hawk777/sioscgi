@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from typing import ClassVar
 
+import pytest
+
 import sioscgi.response
 
 
@@ -89,14 +91,14 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_non_latin1_content_type(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable Content-Type header value."""
-        with self.assertRaises(sioscgi.response.HeaderNotISO88591Error):
+        with pytest.raises(sioscgi.response.HeaderNotISO88591Error):
             sioscgi.response.Headers(
                 "200 OK", [("Content-Type", "text/Ω"), ("Content-Length", "0")]
             )
 
     def test_non_latin1_location(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable Location header value."""
-        with self.assertRaises(sioscgi.response.HeaderNotISO88591Error):
+        with pytest.raises(sioscgi.response.HeaderNotISO88591Error):
             sioscgi.response.Headers(
                 "301 Moved Permanently",
                 [
@@ -108,7 +110,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
     def test_non_latin1_other(self: TestBadResponseHeaders) -> None:
         """Test rejection of an unencodable general header value."""
-        with self.assertRaises(sioscgi.response.HeaderNotISO88591Error):
+        with pytest.raises(sioscgi.response.HeaderNotISO88591Error):
             sioscgi.response.Headers(
                 "200 OK",
                 [
@@ -124,7 +126,7 @@ class TestBadResponseHeaders(unittest.TestCase):
 
         A local redirect must not have any headers other than Location.
         """
-        with self.assertRaises(sioscgi.response.NonDocumentHeadersError):
+        with pytest.raises(sioscgi.response.NonDocumentHeadersError):
             sioscgi.response.Headers(
                 None,
                 [("Location", "/foo"), ("Content-Type", "text/plain; charset=UTF-8")],
@@ -136,14 +138,14 @@ class TestBadResponseHeaders(unittest.TestCase):
 
         A local redirect must not have any headers other than Location.
         """
-        with self.assertRaises(sioscgi.response.NonDocumentHeadersError):
+        with pytest.raises(sioscgi.response.NonDocumentHeadersError):
             sioscgi.response.Headers(
                 None, [("Location", "/foo"), ("Other-Thing", "bar")]
             )
 
     def test_headers_hop_by_hop(self: TestBadResponseHeaders) -> None:
         """Test trying to send a hop-by-hop header."""
-        with self.assertRaises(sioscgi.response.HeaderHopByHopError):
+        with pytest.raises(sioscgi.response.HeaderHopByHopError):
             sioscgi.response.Headers(
                 "200 OK",
                 [
@@ -162,12 +164,12 @@ class TestBadResponseSequence(unittest.TestCase):
         uut = sioscgi.response.SCGIWriter()
         assert uut.state is sioscgi.response.State.HEADERS
         tx_body = sioscgi.response.Body(b"abcd")
-        with self.assertRaises(sioscgi.response.BadEventInStateError):
+        with pytest.raises(sioscgi.response.BadEventInStateError):
             uut.send(tx_body)
 
     def test_response_end_before_headers(self: TestBadResponseSequence) -> None:
         """Test trying to send the response end marker before sending the headers."""
         uut = sioscgi.response.SCGIWriter()
         assert uut.state is sioscgi.response.State.HEADERS
-        with self.assertRaises(sioscgi.response.BadEventInStateError):
+        with pytest.raises(sioscgi.response.BadEventInStateError):
             uut.send(sioscgi.response.End())

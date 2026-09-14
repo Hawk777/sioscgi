@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from typing import ClassVar
 
+import pytest
+
 import sioscgi.request
 
 
@@ -88,7 +90,7 @@ class TestBadData(unittest.TestCase):
         uut = sioscgi.request.SCGIReader()
         uut.receive_data(TestGood.RX_DATA[:-1])
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.RemotePrematureEOFError):
+        with pytest.raises(sioscgi.request.RemotePrematureEOFError):
             uut.next_event()
 
     def test_headers_no_comma(self: TestBadData) -> None:
@@ -104,7 +106,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )  # Comma replaced with @
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.BadNetstringTerminatorError):
+        with pytest.raises(sioscgi.request.BadNetstringTerminatorError):
             uut.next_event()
 
     def test_headers_no_scgi(self: TestBadData) -> None:
@@ -119,7 +121,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.NoSCGIVariableError):
+        with pytest.raises(sioscgi.request.NoSCGIVariableError):
             uut.next_event()
 
     def test_headers_no_content_length(self: TestBadData) -> None:
@@ -134,7 +136,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.NoContentLengthError):
+        with pytest.raises(sioscgi.request.NoContentLengthError):
             uut.next_event()
 
     def test_headers_no_nul(self: TestBadData) -> None:
@@ -150,7 +152,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.HeadersNotNULTerminatedError):
+        with pytest.raises(sioscgi.request.HeadersNotNULTerminatedError):
             uut.next_event()
 
     def test_headers_odd_number(self: TestBadData) -> None:
@@ -170,7 +172,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.HeadersOddStringCountError):
+        with pytest.raises(sioscgi.request.HeadersOddStringCountError):
             uut.next_event()
 
     def test_headers_wrong_scgi(self: TestBadData) -> None:
@@ -190,7 +192,7 @@ class TestBadData(unittest.TestCase):
             b"What is the answer to life?"
         )
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.BadSCGIVersionError):
+        with pytest.raises(sioscgi.request.BadSCGIVersionError):
             uut.next_event()
 
     def test_headers_length_space(self: TestBadData) -> None:
@@ -198,7 +200,7 @@ class TestBadData(unittest.TestCase):
         uut = sioscgi.request.SCGIReader()
         uut.receive_data(b" :")
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.BadNetstringLengthError):
+        with pytest.raises(sioscgi.request.BadNetstringLengthError):
             uut.next_event()
 
     def test_headers_length_non_integer(self: TestBadData) -> None:
@@ -206,7 +208,7 @@ class TestBadData(unittest.TestCase):
         uut = sioscgi.request.SCGIReader()
         uut.receive_data(b"A:")
         uut.receive_data(b"")
-        with self.assertRaises(sioscgi.request.BadNetstringLengthError):
+        with pytest.raises(sioscgi.request.BadNetstringLengthError):
             uut.next_event()
 
 
@@ -223,5 +225,5 @@ class TestOtherErrors(unittest.TestCase):
         # Because this indicates a bug in local software which is impossible for a
         # remote peer to trigger given properly compliant local code, the exception is
         # raised immediately from receive_data rather than being deferred to next_event.
-        with self.assertRaises(sioscgi.request.ReceiveAfterEOFError):
+        with pytest.raises(sioscgi.request.ReceiveAfterEOFError):
             uut.receive_data(b"x")
