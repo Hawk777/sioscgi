@@ -1,3 +1,12 @@
+Changes in 5.0.1
+================
+
+The minimum Python version was increased to 3.12.
+
+The build system is changed from setuptools to uv_build.
+
+Significant internal cleanup was performed.
+
 Changes in 5.0.0
 ================
 
