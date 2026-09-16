@@ -16,7 +16,7 @@ dev = [
 
 [project]
 name = "sioscgi"
-version = "5.0.0"
+version = "5.0.1"
 description = "A sans-I/O implementation of the SCGI specification."
 readme = "README.rst"
 requires-python = ">=3.12"
