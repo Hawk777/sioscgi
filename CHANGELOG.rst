@@ -1,3 +1,14 @@
+Changes in 5.0.2
+================
+
+The minimum Python version was increased to 3.14.
+
+``__all__`` was removed from ``__init__.py``. Therefore, ``from sioscgi import
+*`` will no longer work. This was not a good pattern anyway, and should not
+have been used.
+
+Linting was cleaned up and modernized.
+
 Changes in 5.0.1
 ================
 
