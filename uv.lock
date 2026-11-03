@@ -346,7 +346,7 @@ wheels = [
 
 [[package]]
 name = "sioscgi"
-version = "5.0.1"
+version = "5.0.2"
 source = { editable = "." }
 
 [package.dev-dependencies]
