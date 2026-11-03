@@ -64,7 +64,6 @@ ignore = [
 	"D203", # one-blank-line-before-class
 	"D212", # multi-line-summary-first-line
 	"S101", # assert
-	"TC003", # typing-only-standard-library-import
 ]
 select = ["ALL"]
 

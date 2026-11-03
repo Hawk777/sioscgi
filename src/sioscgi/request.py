@@ -6,8 +6,10 @@ import collections
 import enum
 import functools
 import logging
-from collections.abc import Callable
-from typing import ClassVar, NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @enum.unique
