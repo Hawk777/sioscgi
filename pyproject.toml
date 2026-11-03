@@ -54,7 +54,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 src = ["src"]
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 allowed-confusables = ["’"]
